@@ -1,0 +1,9 @@
+{
+  "forbidden_topics": ["насилие", "смерть как наказание", "буллинг без решения", "страхи без поддержки"],
+  "forbidden_phrases": ["ты должен", "это плохо", "так делать нельзя", "ты неправ"],
+  "age_limits": {
+    "3-6": { "max_session_minutes": 15, "max_choices_per_scene": 2 },
+    "7-12": { "max_session_minutes": 30, "max_choices_per_scene": 3 },
+    "13+": { "max_session_minutes": 45, "max_choices_per_scene": 4 }
+  }
+}

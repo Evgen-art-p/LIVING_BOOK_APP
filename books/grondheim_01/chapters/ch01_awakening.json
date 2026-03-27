@@ -1,0 +1,126 @@
+{
+  "id": "ch01",
+  "title": "Пробуждение",
+  "scenes": [
+    {
+      "id": "scene_01",
+      "speaker": "eirik",
+      "text": "Тише... Ты слышишь? Снег скрипит под ногами. Мы у подножия горы Грондхейм. Впереди — тёмная пещера. Позади — тёплый костёр. Куда пойдём?",
+      "audio": {
+        "foley": ["foley/footsteps_snow.mp3"],
+        "music": "music/calm_forest.mp3",
+        "spatial": { "speaker_position": { "azimuth": 45, "distance": 2.0 } }
+      },
+      "after_speech": "ask_choice",
+      "choices": [
+        {
+          "id": "go_cave",
+          "label": "Пойти к пещере",
+          "triggers": ["memory:brave_choice"],
+          "next_scene": "scene_02a"
+        },
+        {
+          "id": "stay_camp",
+          "label": "Остаться у костра",
+          "triggers": ["memory:careful_choice"],
+          "next_scene": "scene_02b"
+        }
+      ]
+    },
+    {
+      "id": "scene_02a",
+      "speaker": "eirik",
+      "text": "Смелый выбор! Пещера встречает нас холодным дыханием. Эхо разносит каждый шаг. Где-то капает вода... Видишь — впереди два туннеля. Один уходит вниз, другой — вверх, к свету.",
+      "audio": {
+        "foley": ["foley/cave_echo.mp3", "foley/water_drip.mp3"],
+        "music": "music/tension_cave.mp3"
+      },
+      "after_speech": "ask_choice",
+      "choices": [
+        {
+          "id": "go_down",
+          "label": "Спуститься вниз",
+          "triggers": ["memory:explorer"],
+          "next_scene": "scene_03_deep"
+        },
+        {
+          "id": "go_up",
+          "label": "Подняться к свету",
+          "triggers": ["memory:seeker_of_light"],
+          "next_scene": "scene_03_light"
+        }
+      ]
+    },
+    {
+      "id": "scene_02b",
+      "speaker": "loka",
+      "text": "Огонь потрескивает. Искры летят в небо, как маленькие звёзды... Привет. Я — Лока. Я живу здесь, у подножия горы. Расскажи мне — ты откуда?",
+      "audio": {
+        "foley": ["foley/campfire.mp3"],
+        "music": "music/calm_forest.mp3"
+      },
+      "mode": "free_talk",
+      "context": "Ребёнок выбрал остаться у костра. Лока — тёплый, любопытный персонаж. Знакомится с ребёнком.",
+      "ai_instructions": "Ты — Лока. Задавай мягкие вопросы. Интересуйся кто этот ребёнок. Расскажи немного о себе. Не торопи. Если ребёнок молчит — опиши что происходит вокруг (звёзды, огонь, тишина).",
+      "max_turns": 5,
+      "on_end": "scene_03_light"
+    },
+    {
+      "id": "scene_03_deep",
+      "speaker": "eirik",
+      "text": "Мы спускаемся ниже... Стены мерцают. Это кристаллы! Они светятся голубым. Эйрик шепчет: «Это Сердце Горы. Мало кто видел его. Ты — особенный.»",
+      "audio": {
+        "foley": ["foley/crystal_hum.mp3"],
+        "music": "music/wonder.mp3"
+      },
+      "after_speech": "ask_choice",
+      "choices": [
+        {
+          "id": "touch_crystal",
+          "label": "Прикоснуться к кристаллу",
+          "triggers": ["memory:touched_heart", "artifact:crystal_shard"],
+          "next_scene": "scene_04_end"
+        },
+        {
+          "id": "just_look",
+          "label": "Просто смотреть",
+          "triggers": ["memory:observer"],
+          "next_scene": "scene_04_end"
+        }
+      ]
+    },
+    {
+      "id": "scene_03_light",
+      "speaker": "eirik",
+      "text": "Свет становится ярче! Мы выходим на вершину. Весь мир Грондхейма — как на ладони. Горы, леса, реки... А вон там, далеко — город. Наш путь только начинается.",
+      "audio": {
+        "foley": ["foley/wind_mountain.mp3"],
+        "music": "music/wonder.mp3"
+      },
+      "after_speech": "ask_choice",
+      "choices": [
+        {
+          "id": "go_city",
+          "label": "Идти к городу",
+          "triggers": ["memory:adventurer"],
+          "next_scene": "scene_04_end"
+        },
+        {
+          "id": "stay_look",
+          "label": "Посидеть и посмотреть",
+          "triggers": ["memory:contemplator"],
+          "next_scene": "scene_04_end"
+        }
+      ]
+    },
+    {
+      "id": "scene_04_end",
+      "speaker": "eirik",
+      "text": "Это был первый день в Грондхейме. Ты сделал свои первые выборы. Персонажи запомнят их. Когда вернёшься — мир будет помнить тебя. До встречи, путник.",
+      "audio": {
+        "music": "music/calm_forest.mp3"
+      },
+      "after_speech": "end"
+    }
+  ]
+}
