@@ -1,0 +1,18 @@
+{
+  "id": "grondheim_book_01",
+  "title": "Грондхейм: Пробуждение",
+  "description": "Первая книга мира Грондхейм. Эйрик ведёт тебя к горе.",
+  "age_group": "7-12",
+  "language": "ru",
+  "version": "1.0.0",
+  "created_by": "Six Fingers Studio",
+  "chapters": [
+    { "id": "ch01", "title": "Пробуждение", "file": "chapters/ch01_awakening.json" }
+  ],
+  "characters": [
+    { "id": "eirik", "file": "characters/eirik.json" },
+    { "id": "loka",  "file": "characters/loka.json" }
+  ],
+  "starting_chapter": "ch01",
+  "starting_scene": "scene_01"
+}
