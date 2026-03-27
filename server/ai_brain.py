@@ -8,7 +8,7 @@ import os
 import httpx
 
 # OpenRouter
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "google/gemini-2.5-flash"
 
