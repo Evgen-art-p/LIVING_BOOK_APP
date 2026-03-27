@@ -1,0 +1,4 @@
+{"ts": "2026-03-27T05:45:24.726486", "epoch": 1774579524.7264864, "type": "choice", "choice_id": "go_cave", "choice_label": "Пойти к пещере", "triggers": ["memory:brave_choice"], "scene_id": "scene_01", "speaker": "eirik"}
+{"ts": "2026-03-27T05:45:51.360603", "epoch": 1774579551.360603, "type": "choice", "choice_id": "go_down", "choice_label": "Спуститься вниз", "triggers": ["memory:explorer"], "scene_id": "scene_02a", "speaker": "eirik"}
+{"ts": "2026-03-27T05:46:32.599817", "epoch": 1774579592.5998175, "type": "choice", "choice_id": "touch_crystal", "choice_label": "Прикоснуться к кристаллу", "triggers": ["memory:touched_heart", "artifact:crystal_shard"], "scene_id": "scene_03_deep", "speaker": "eirik"}
+{"ts": "2026-03-27T05:46:32.600816", "epoch": 1774579592.600816, "type": "artifact", "artifact": "crystal_shard"}
