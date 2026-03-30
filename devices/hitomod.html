@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Грондхейм: Хитроморда-Резонанс</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { position: absolute; }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let audioContext, analyser, data;
+    let started = false;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    class Particle {
+        constructor(x, y, r) {
+            this.x = x;
+            this.y = y;
+            this.baseR = r;
+            this.life = 100;
+            // Движение зависит только от начального импульса звука
+            this.vX = (Math.random() - 0.5) * 5;
+            this.vY = (Math.random() - 0.5) * 5;
+        }
+        update(vol) {
+            this.x += this.vX * (vol/50);
+            this.y += this.vY * (vol/50);
+            this.life -= 2;
+        }
+        draw() {
+            let opacity = this.life / 100;
+            let r = this.baseR * opacity;
+            let grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r * 2);
+            grd.addColorStop(0, `rgba(150, 255, 200, ${opacity * 0.6})`);
+            grd.addColorStop(1, 'transparent');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, r * 2, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    let particles = [];
+
+    function init() {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5; 
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+            audioContext.createMediaStreamSource(s).connect(analyser);
+            loop();
+        });
+    }
+
+    function loop() {
+        requestAnimationFrame(loop);
+        data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+
+        // Черный фон без шлейфа, чтобы в тишине всё исчезало мгновенно
+        ctx.fillStyle = 'black'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let sum = 0;
+        for(let i=0; i<20; i++) sum += data[i];
+        let vol = sum / 20;
+
+        const x = canvas.width / 2;
+        const y = canvas.height / 2;
+
+        // Рождаем облако только при звуке
+        if(vol > 5) {
+            for(let i=0; i < Math.floor(vol/10); i++) {
+                particles.push(new Particle(x + (Math.random()-0.5)*vol, y + (Math.random()-0.5)*vol, vol * 0.5));
+            }
+        }
+
+        particles = particles.filter(p => p.life > 0);
+        particles.forEach(p => {
+            p.update(vol);
+            p.draw();
+        });
+
+        // Рисуем "вспышки" связи
+        if(vol > 15) {
+            ctx.beginPath();
+            for(let i=0; i<data.length; i+=20) {
+                let angle = (i / data.length) * Math.PI * 2;
+                let d = data[i] * 1.2;
+                ctx.moveTo(x, y);
+                ctx.quadraticCurveTo(
+                    x + Math.cos(angle)*d, 
+                    y + Math.sin(angle)*d,
+                    x + Math.cos(angle+0.2)*(d*0.5), 
+                    y + Math.sin(angle+0.2)*(d*0.5)
+                );
+            }
+            ctx.strokeStyle = `rgba(100, 255, 180, ${vol/255})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        }
+    }
+
+    window.onclick = () => { if(!started) { started = true; init(); } };
+</script>
+</body>
+</html>

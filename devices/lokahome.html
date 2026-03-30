@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Грондхейм: Искра</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { position: absolute; }
+        #hint { color: #333; font-family: sans-serif; letter-spacing: 2px; font-size: 10px; position: absolute; bottom: 20px; text-transform: uppercase; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <div id="hint">Кликни, чтобы зажечь</div>
+
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let audioContext, analyser, data;
+    let started = false;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function init() {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+            audioContext.createMediaStreamSource(s).connect(analyser);
+            document.getElementById('hint').innerText = "Я слышу тебя...";
+            loop();
+        });
+    }
+
+    function loop() {
+        requestAnimationFrame(loop);
+        data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let sum = 0;
+        for(let i=0; i<128; i++) sum += data[i];
+        let vol = sum / 128;
+
+        const x = canvas.width / 2;
+        const y = canvas.height / 2;
+        
+        // Рисуем саму Искру
+        let r = 5 + vol * 2;
+        let grd = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
+        grd.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        grd.addColorStop(0.4, 'rgba(0, 200, 255, 0.4)');
+        grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 4, 0, Math.PI*2);
+        ctx.fill();
+
+        // Лучи резонанса
+        ctx.beginPath();
+        for(let i=0; i<data.length; i+=4) {
+            let angle = (i / data.length) * Math.PI * 2;
+            let d = data[i] * 1.5;
+            ctx.moveTo(x + Math.cos(angle)*r, y + Math.sin(angle)*r);
+            ctx.lineTo(x + Math.cos(angle)*(r+d), y + Math.sin(angle)*(r+d));
+        }
+        ctx.strokeStyle = `rgba(0, 150, 255, 0.3)`;
+        ctx.stroke();
+    }
+
+    window.onclick = () => { if(!started) { started = true; init(); } };
+</script>
+</body>
+</html>

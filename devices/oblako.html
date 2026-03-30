@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Грондхейм: Облачко</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { position: absolute; }
+        #hint { color: #444; font-family: sans-serif; letter-spacing: 2px; font-size: 10px; position: absolute; bottom: 20px; text-transform: uppercase; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <div id="hint">Прикоснись к туману</div>
+
+<script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let audioContext, analyser, data;
+    let started = false;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function init() {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256; // Меньше деталей для более мягкого отклика
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+            audioContext.createMediaStreamSource(s).connect(analyser);
+            document.getElementById('hint').innerText = "Облачко дышит...";
+            loop();
+        });
+    }
+
+    function loop() {
+        requestAnimationFrame(loop);
+        data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+
+        // Мягкое затухание для эффекта шлейфа
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let sum = 0;
+        for(let i=0; i<32; i++) sum += data[i];
+        let vol = sum / 32;
+
+        const x = canvas.width / 2;
+        const y = canvas.height / 2;
+        
+        // Базовый радиус "дыхания"
+        let baseR = 40 + vol * 1.5;
+
+        // Рисуем несколько слоев тумана
+        for(let j = 0; j < 3; j++) {
+            let r = baseR + (j * 20);
+            let opacity = 0.3 - (j * 0.1);
+            
+            let grd = ctx.createRadialGradient(x, y, 0, x, y, r + (vol * j));
+            grd.addColorStop(0, `rgba(200, 230, 255, ${opacity})`);
+            grd.addColorStop(0.6, `rgba(100, 150, 200, ${opacity * 0.5})`);
+            grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            // Вместо круга — легкая деформация от звука
+            ctx.arc(x, y, r + (vol * 0.5), 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Вместо лучей — мягкие "вихри" вокруг
+        ctx.beginPath();
+        for(let i=0; i<data.length; i+=8) {
+            let angle = (i / data.length) * Math.PI * 2 + (Date.now() * 0.001);
+            let d = data[i] * 0.8;
+            let startR = baseR * 0.8;
+            ctx.moveTo(x + Math.cos(angle)*startR, y + Math.sin(angle)*startR);
+            ctx.quadraticCurveTo(
+                x + Math.cos(angle + 0.5)*(startR + d), 
+                y + Math.sin(angle + 0.5)*(startR + d),
+                x + Math.cos(angle + 1)*startR, 
+                y + Math.sin(angle + 1)*startR
+            );
+        }
+        ctx.strokeStyle = `rgba(150, 200, 255, 0.15)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    window.onclick = () => { if(!started) { started = true; init(); } };
+</script>
+</body>
+</html>
