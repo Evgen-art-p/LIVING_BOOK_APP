@@ -1,0 +1,39 @@
+{
+  "book_id": "grondheim_01",
+  "title": "Пробуждение во тьме",
+  "description": "Первая книга мира Грондхейм. Ребёнок просыпается в пещере вместе с Искоркой и встречает хранителя Эйрика.",
+  "target_age": "7-12",
+  "language": "ru",
+  "version": "1.1.0",
+  "created_by": "Six Fingers Studio",
+  "global_tags": ["#Смелость", "#Холод", "#ПерваяВстреча"],
+
+  "starting_chapter": "ch_01",
+  "starting_scene": "cave_entrance",
+
+  "global_intents": {
+    "intent_emergency": {
+      "keywords": [
+        "больно", "кровь", "пожар", "помогите", "ударил", "ударили",
+        "плохо по-настоящему", "страшно по-настоящему", "мне плохо",
+        "я упал", "я сломал", "я порезал", "вызовите", "скорую"
+      ],
+      "reply_speaker": "iskra",
+      "reply_text": "Солнышко, я всего лишь сказочная Искорка, но мне очень важно, чтобы ты был в безопасности. Пожалуйста, позови сейчас маму, папу или кого-то из взрослых. Скажи им, что тебе нужна помощь. Я подожду тебя здесь.",
+      "reply_audio": "audio/isk_emergency_stop.mp3",
+      "action": "pause_game_until_adult",
+      "ui_pulse_color": "red",
+      "notify_parent": true
+    }
+  },
+
+  "chapters": [
+    { "id": "ch_01", "title": "Пробуждение",       "file": "chapters/ch01_awakening.json" },
+    { "id": "ch_02", "title": "Мерцающий туннель", "file": "chapters/ch02_tunnel.json"   }
+  ],
+
+  "characters": [
+    { "id": "eirik", "file": "characters/eirik.json" },
+    { "id": "iskra", "file": "characters/iskra.json" }
+  ]
+}

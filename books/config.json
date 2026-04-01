@@ -1,0 +1,39 @@
+{
+  "stt": {
+    "engine": "web_speech_api",
+    "language": "ru-RU",
+    "interim_results": false,
+    "confidence_threshold": 0.6,
+    "fallback_after_silence_sec": 5
+  },
+
+  "tts": {
+    "engine": "web_speech_synthesis",
+    "language": "ru-RU",
+    "prefer_audio_files": true,
+    "fallback_to_tts_if_no_audio": true
+  },
+
+  "audio": {
+    "spatial_enabled": true,
+    "spatial_engine": "web_audio_api",
+    "master_volume": 0.85,
+    "ambient_volume": 0.4,
+    "foley_volume": 0.6,
+    "voice_volume": 1.0,
+    "fade_duration_ms": 800
+  },
+
+  "memory": {
+    "engine": "indexeddb",
+    "db_name": "iskra_fort",
+    "beacon_batch_max_events": 200
+  },
+
+  "ui": {
+    "screen_mode": "dark",
+    "iskra_default_color": "cyan",
+    "show_captions": true,
+    "caption_timeout_ms": 4000
+  }
+}

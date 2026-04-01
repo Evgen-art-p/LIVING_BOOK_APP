@@ -3,180 +3,909 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alive Book — Грондхейм</title>
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json">
+    <title>Грондхейм: Искорка</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0a0a0c; color: #e0e0e0;
-            min-height: 100vh; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; padding: 2rem;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .container { max-width: 480px; width: 100%; text-align: center; }
-        .logo { font-size: 10px; letter-spacing: 0.3em; color: #7F77DD; text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
-        .title { font-size: 1.3rem; font-weight: 300; color: white; font-style: italic; margin-bottom: 2rem; }
-        .title span { color: #22d3ee; font-style: normal; }
-        .orb { width: 80px; height: 80px; margin: 0 auto 1.5rem; border-radius: 50%; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); display: flex; align-items: center; justify-content: center; animation: pulse 3s ease-in-out infinite; }
-        .orb-inner { width: 30px; height: 30px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.6); }
-        .orb.thinking .orb-inner { animation: think 0.8s ease-in-out infinite alternate; }
-        @keyframes pulse { 0%,100%{transform:scale(1);opacity:.8} 50%{transform:scale(1.05);opacity:1} }
-        @keyframes think { 0%{transform:scale(1);box-shadow:0 0 20px rgba(34,211,238,.6)} 100%{transform:scale(1.3);box-shadow:0 0 40px rgba(34,211,238,1)} }
-        .speaker { font-size: 12px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 600; margin-bottom: 1rem; }
-        .scene-text { font-size: 1.1rem; line-height: 1.8; color: #d0d0d0; margin-bottom: 2rem; min-height: 60px; }
-        .choices { display: flex; flex-direction: column; gap: 12px; }
-        .choice-btn { background: transparent; border: 1px solid rgba(6,182,212,0.4); color: #22d3ee; padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
-        .choice-btn:hover { background: rgba(6,182,212,0.1); border-color: #22d3ee; }
-        .choice-btn:active { transform: scale(0.97); }
-        .chat-area { display: none; flex-direction: column; gap: 12px; }
-        .chat-area.active { display: flex; }
-        .chat-history { max-height: 200px; overflow-y: auto; text-align: left; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 12px; font-size: 14px; line-height: 1.6; }
-        .chat-history .child-msg { color: #9FE1CB; margin-bottom: 8px; }
-        .chat-history .child-msg::before { content: "Ты: "; font-weight: 600; }
-        .chat-history .char-msg { color: #d0d0d0; margin-bottom: 8px; }
-        .turns-left { font-size: 10px; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.1em; }
-        .chat-input-row { display: flex; gap: 8px; }
-        .chat-input-row textarea { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 12px; border-radius: 12px; font-size: 14px; resize: none; min-height: 48px; font-family: inherit; }
-        .chat-input-row textarea:focus { outline: none; border-color: #22d3ee; }
-        .send-btn { background: transparent; border: 1px solid #22d3ee; color: #22d3ee; padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
-        .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .memory-bar { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); font-size: 10px; color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.1em; }
-        .end-screen { display: none; text-align: center; }
-        .end-screen.active { display: block; }
-        .end-screen h2 { color: #22d3ee; font-weight: 300; margin-bottom: 1rem; }
-        .end-screen .memories { color: #7F77DD; font-size: 13px; line-height: 2; }
+        canvas { position: absolute; top: 0; left: 0; touch-action: none; }
+        #status {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #334;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            pointer-events: none;
+            transition: color 0.6s;
+            white-space: nowrap;
+        }
+        #caption {
+            position: absolute;
+            bottom: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(0,200,255,0.4);
+            font-size: 13px;
+            max-width: 75vw;
+            text-align: center;
+            pointer-events: none;
+            transition: opacity 0.8s;
+            opacity: 0;
+            line-height: 1.6;
+        }
+        /* Экран паузы — Emergency Stop */
+        #emergency-screen {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 100;
+        }
+        #emergency-screen.active { display: flex; }
+        #emergency-text {
+            color: rgba(255,200,200,0.9);
+            font-size: 15px;
+            max-width: 72vw;
+            text-align: center;
+            line-height: 1.8;
+            letter-spacing: 0.3px;
+        }
+        #emergency-resume {
+            background: transparent;
+            border: 1px solid rgba(255,200,200,0.3);
+            color: rgba(255,200,200,0.6);
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 10px 24px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        #start-screen {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        #start-btn {
+            background: transparent;
+            border: 1px solid rgba(0,200,255,0.3);
+            color: rgba(0,200,255,0.6);
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 12px 28px;
+            cursor: pointer;
+            transition: all 0.4s;
+        }
+        #start-btn:hover { border-color: rgba(0,200,255,0.8); color: rgba(0,200,255,0.9); }
+        #offline-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: rgba(0,200,100,0.3);
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">Studio Six Fingers</div>
-        <div class="title">Alive Book: <span>Грондхейм</span></div>
-        <div class="orb" id="orb"><div class="orb-inner"></div></div>
-        <div id="game-screen">
-            <div class="speaker" id="speaker"></div>
-            <div class="scene-text" id="scene-text">Загрузка...</div>
-            <div class="choices" id="choices"></div>
-            <div class="chat-area" id="chat-area">
-                <div class="chat-history" id="chat-history"></div>
-                <div class="turns-left" id="turns-left"></div>
-                <div class="chat-input-row">
-                    <textarea id="user-input" placeholder="Скажи что-нибудь..." rows="1"></textarea>
-                    <button class="send-btn" id="send-btn" onclick="sendChat()">Ответить</button>
-                </div>
-            </div>
-        </div>
-        <div class="end-screen" id="end-screen">
-            <h2>Первый день в Грондхейме завершён</h2>
-            <p style="color:#888;margin-bottom:1.5rem;">Твои выборы запомнены. Когда вернёшься — мир будет помнить тебя.</p>
-            <div class="memories" id="memory-display"></div>
-        </div>
-        <div class="memory-bar" id="memory-bar"></div>
+    <canvas id="c"></canvas>
+    <div id="caption"></div>
+    <div id="status">—</div>
+    <div id="offline-badge">⬡ форт</div>
+
+    <!-- Emergency Stop Screen -->
+    <div id="emergency-screen">
+        <div id="emergency-text"></div>
+        <button id="emergency-resume">Взрослый рядом — продолжить</button>
     </div>
-    <script>
-        const API = 'http://localhost:8000';
-        let currentScene = null;
 
-        async function loadScene() {
-            try {
-                const res = await fetch(`${API}/scene`);
-                currentScene = await res.json();
-                renderScene(currentScene);
-            } catch (e) {
-                document.getElementById('scene-text').textContent =
-                    'Не удалось подключиться. Запусти: cd server && uvicorn main:app --reload';
-            }
-        }
+    <div id="start-screen">
+        <button id="start-btn">Зажечь Искорку</button>
+    </div>
 
-        function renderScene(scene) {
-            currentScene = scene;
-            const gameScreen = document.getElementById('game-screen');
-            const endScreen = document.getElementById('end-screen');
-            if (scene.after_speech === 'end') {
-                gameScreen.style.display = 'none';
-                endScreen.classList.add('active');
-                loadMemories();
-                return;
-            }
-            gameScreen.style.display = 'block';
-            endScreen.classList.remove('active');
-            document.getElementById('speaker').textContent = scene.character ? scene.character.name : (scene.speaker || '');
-            document.getElementById('scene-text').textContent = scene.text || scene.context || '';
-            const choicesEl = document.getElementById('choices');
-            const chatArea = document.getElementById('chat-area');
-            choicesEl.innerHTML = '';
-            chatArea.classList.remove('active');
-            document.getElementById('chat-history').innerHTML = '';
-            if (scene.after_speech === 'ask_choice' && scene.choices) {
-                scene.choices.forEach(choice => {
-                    const btn = document.createElement('button');
-                    btn.className = 'choice-btn';
-                    btn.textContent = choice.label;
-                    btn.onclick = () => makeChoice(choice.id);
-                    choicesEl.appendChild(btn);
-                });
-            } else if (scene.mode === 'free_talk') {
-                chatArea.classList.add('active');
-                document.getElementById('turns-left').textContent = `Реплик осталось: ${scene.max_turns || '?'}`;
-                document.getElementById('user-input').value = '';
-                document.getElementById('user-input').focus();
-            }
-        }
+<script>
+// ════════════════════════════════════════════════════════════════════
+//  КОНФИГ
+// ════════════════════════════════════════════════════════════════════
+const BOOK_PATH  = '../books/grondheim_01/';
+const CHILD_NAME = 'Артём';
+const SESSION_ID = 'session_001';
 
-        async function makeChoice(choiceId) {
-            document.body.classList.add('loading');
-            try {
-                const res = await fetch(`${API}/choice`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({choice_id: choiceId}) });
-                renderScene(await res.json());
-                updateMemoryBar();
-            } catch (e) { console.error('Ошибка:', e); }
-            document.body.classList.remove('loading');
-        }
+// Цвета CSS для ui_pulse_color из пакета
+const COLOR_MAP = {
+    'красный':     '#ff4444',
+    'синий':       '#4488ff',
+    'зелёный':     '#44ff88',
+    'зеленый':     '#44ff88',
+    'жёлтый':      '#ffee44',
+    'желтый':      '#ffee44',
+    'фиолетовый':  '#aa44ff',
+    'розовый':     '#ff88cc',
+    'оранжевый':   '#ff8844',
+    'orange':      '#ff8844',
+    'голубой':     '#44ddff',
+    'белый':       '#ffffff',
+    'чёрный':      '#666688',
+    'черный':      '#666688',
+    'золотой':     '#ffcc44',
+    'серебряный':  '#aabbcc',
+    // системные цвета
+    'cyan':   '#00c8ff',
+    'yellow': '#ffee44',
+    'green':  '#44ff88',
+    'blue':   '#4488ff',
+    'red':    '#ff4444',
+    'white':  '#ffffff',
+};
 
-        async function sendChat() {
-            const input = document.getElementById('user-input');
-            const text = input.value.trim();
-            if (!text) return;
-            const sendBtn = document.getElementById('send-btn');
-            sendBtn.disabled = true;
-            input.value = '';
-            addChatMessage('child', text);
-            document.getElementById('orb').classList.add('thinking');
-            try {
-                const res = await fetch(`${API}/chat`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({message: text}) });
-                const data = await res.json();
-                addChatMessage('character', data.text, data.speaker);
-                document.getElementById('turns-left').textContent = `Реплик осталось: ${data.turns_left}`;
-                if (data.is_finished && data.next_scene) {
-                    setTimeout(() => renderScene(data.next_scene), 2000);
-                }
-            } catch (e) {
-                addChatMessage('character', '(Не удалось получить ответ...)', '');
-            }
-            document.getElementById('orb').classList.remove('thinking');
-            sendBtn.disabled = false;
-            input.focus();
-        }
+function resolveColor(name) {
+    if (!name) return COLOR_MAP['cyan'];
+    return COLOR_MAP[name.toLowerCase()] || COLOR_MAP['cyan'];
+}
 
-        function addChatMessage(role, text, speakerName) {
-            const history = document.getElementById('chat-history');
-            const div = document.createElement('div');
-            if (role === 'child') { div.className = 'child-msg'; div.textContent = text; }
-            else { div.className = 'char-msg'; div.innerHTML = `<span style="color:#22d3ee;font-weight:600">${speakerName||currentScene?.character?.name||''}:</span> ${text}`; }
-            history.appendChild(div);
-            history.scrollTop = history.scrollHeight;
-        }
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: MEMORY — IndexedDB, Zero Data
+// ════════════════════════════════════════════════════════════════════
+const Memory = (() => {
+    const DB_NAME = 'iskra_fort', DB_VERSION = 1;
+    let db = null;
 
-        document.getElementById('user-input').addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+    function open() {
+        return new Promise((res, rej) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = e => {
+                const d = e.target.result;
+                ['progress','utterances','choices','tags','biography','sync_queue']
+                    .forEach(store => {
+                        if (!d.objectStoreNames.contains(store))
+                            d.createObjectStore(store,
+                                store === 'progress' || store === 'biography'
+                                    ? { keyPath: 'key' }
+                                    : { autoIncrement: true }
+                            );
+                    });
+            };
+            req.onsuccess = e => { db = e.target.result; res(db); };
+            req.onerror   = () => rej(req.error);
         });
+    }
 
-        async function updateMemoryBar() {
-            try { const s = (await (await fetch(`${API}/state`)).json()); const bar = document.getElementById('memory-bar'); if (s.memory?.length) bar.textContent = 'память: ' + s.memory.map(m=>m.replace('memory:','')).join(' · '); } catch(e){}
+    function tx(store, mode = 'readonly') {
+        return db.transaction(store, mode).objectStore(store);
+    }
+    function put(store, data) {
+        return new Promise((res, rej) => {
+            const r = tx(store, 'readwrite').put(data);
+            r.onsuccess = () => res(r.result);
+            r.onerror   = () => rej(r.error);
+        });
+    }
+    function getRecord(store, key) {
+        return new Promise((res, rej) => {
+            const r = tx(store).get(key);
+            r.onsuccess = () => res(r.result || null);
+            r.onerror   = () => rej(r.error);
+        });
+    }
+    function getAll(store) {
+        return new Promise((res, rej) => {
+            const r = tx(store).getAll();
+            r.onsuccess = () => res(r.result);
+            r.onerror   = () => rej(r.error);
+        });
+    }
+
+    // Прогресс
+    async function getProgress(sid)               { return getRecord('progress', sid); }
+    async function setProgress(sid, chId, scId, turns = 0) {
+        return put('progress', { key: sid, chapter_id: chId, scene_id: scId, turn_count: turns });
+    }
+    async function incrementTurn(sid) {
+        const p = await getProgress(sid);
+        if (p) { p.turn_count++; await put('progress', p); return p.turn_count; }
+        return 0;
+    }
+
+    // Биографическая память (ключ-значение)
+    async function setBio(key, value) {
+        await put('biography', { key, value });
+        await put('sync_queue', { type: 'bio', key, ts: Date.now() });
+    }
+    async function getBio(key) {
+        const r = await getRecord('biography', key);
+        return r ? r.value : null;
+    }
+
+    // События
+    async function saveUtterance(sid, text) {
+        await put('utterances', { session_id: sid, text, ts: Date.now() });
+        await put('sync_queue', { type: 'utterance', session_id: sid, ts: Date.now() });
+    }
+    async function saveChoice(sid, choiceId) {
+        await put('choices',   { session_id: sid, choice_id: choiceId, ts: Date.now() });
+        await put('sync_queue',{ type: 'choice', session_id: sid, choice_id: choiceId, ts: Date.now() });
+    }
+    async function addTag(sid, tag) {
+        await put('tags',      { session_id: sid, tag, ts: Date.now() });
+        await put('sync_queue',{ type: 'tag', session_id: sid, tag, ts: Date.now() });
+    }
+
+    async function getSyncQueue()  { return getAll('sync_queue'); }
+    async function clearSyncQueue(){ return new Promise((res,rej) => {
+        const r = tx('sync_queue','readwrite').clear();
+        r.onsuccess = () => res(); r.onerror = () => rej(r.error);
+    }); }
+
+    return {
+        open, getProgress, setProgress, incrementTurn,
+        setBio, getBio,
+        saveUtterance, saveChoice, addTag,
+        getSyncQueue, clearSyncQueue,
+    };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: MEMORY TEMPLATE — подставляет {memory:key} в строки
+// ════════════════════════════════════════════════════════════════════
+const MemoryTemplate = (() => {
+    // Заменяет все вхождения {memory:KEY} на значение из IndexedDB
+    async function resolve(str) {
+        if (!str || !str.includes('{memory:')) return str;
+        const pattern = /\{memory:([^}]+)\}/g;
+        const matches = [...str.matchAll(pattern)];
+        let result = str;
+        for (const m of matches) {
+            const key   = m[1];
+            const value = await Memory.getBio(key) || '';
+            result = result.replace(m[0], value);
         }
-        async function loadMemories() {
-            try { const s = (await (await fetch(`${API}/state`)).json()); const d = document.getElementById('memory-display'); if (s.memory?.length) d.textContent = 'Запомнено: ' + s.memory.map(m=>m.replace('memory:','').replace('artifact:','')).join(', '); } catch(e){}
+        return result;
+    }
+
+    // Разрешает объект сцены: text, audio_file_template, ui_pulse_color
+    async function resolveEvent(event) {
+        if (!event) return event;
+        const resolved = { ...event };
+        if (resolved.audio_file_template) {
+            const path = await resolve(resolved.audio_file_template);
+            resolved.audio_file = path || resolved.audio_file_fallback;
+        }
+        if (resolved.ui_pulse_color) {
+            const color = await resolve(resolved.ui_pulse_color);
+            resolved.ui_pulse_color = color || resolved.ui_pulse_color_fallback || 'cyan';
+        }
+        return resolved;
+    }
+
+    // Разрешает scripted_response (для fallback в crystal_cave и т.п.)
+    async function resolveResponse(resp) {
+        if (!resp) return resp;
+        const r = { ...resp };
+        if (r.ui_pulse_color) {
+            r.ui_pulse_color = await resolve(r.ui_pulse_color) || 'cyan';
+        }
+        return r;
+    }
+
+    return { resolve, resolveEvent, resolveResponse };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: BOOK ENGINE — читает JSON офлайн
+// ════════════════════════════════════════════════════════════════════
+const BookEngine = (() => {
+    let book = null;
+    const cache = {};
+
+    async function loadJSON(path) {
+        const res = await fetch(path);
+        if (!res.ok) throw new Error(`404: ${path}`);
+        return res.json();
+    }
+
+    async function init() {
+        book = await loadJSON(BOOK_PATH + 'book.json');
+        const firstChId = book.starting_chapter;
+        await _loadChapter(firstChId);
+        console.log('[BookEngine] Книга:', book.title);
+    }
+
+    async function _loadChapter(chId) {
+        if (cache[chId]) return cache[chId];
+        const meta = book.chapters.find(c => c.id === chId);
+        if (!meta) throw new Error(`Глава не найдена: ${chId}`);
+        const data = await loadJSON(BOOK_PATH + meta.file);
+        data._index = {};
+        for (const s of data.scenes) data._index[s.scene_id] = s;
+        cache[chId] = data;
+        return data;
+    }
+
+    async function getScene(chId, sceneId) {
+        const ch = await _loadChapter(chId);
+        return ch._index[sceneId] || null;
+    }
+
+    async function findScene(sceneId) {
+        for (const meta of book.chapters) {
+            const ch = await _loadChapter(meta.id);
+            if (ch._index[sceneId]) return { chapterId: meta.id, scene: ch._index[sceneId] };
+        }
+        return null;
+    }
+
+    function getStarting()       { return { chapterId: book.starting_chapter, sceneId: book.starting_scene }; }
+    function getGlobalIntents()  { return book.global_intents || {}; }
+
+    return { init, getScene, findScene, getStarting, getGlobalIntents };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: GLOBAL INTENTS — перехватчик ДО локальных intent'ов
+//  Включая Emergency Stop (Главный Стоп-Кран)
+// ════════════════════════════════════════════════════════════════════
+const GlobalIntents = (() => {
+    function match(text) {
+        const t    = text.toLowerCase();
+        const ints = BookEngine.getGlobalIntents();
+        for (const [name, intent] of Object.entries(ints)) {
+            if (intent.keywords.some(k => t.includes(k))) {
+                return { name, intent };
+            }
+        }
+        return null;
+    }
+
+    async function handle(text) {
+        const hit = match(text);
+        if (!hit) return false;
+
+        const { name, intent } = hit;
+        console.warn('[GlobalIntent]', name);
+
+        if (intent.action === 'pause_game_until_adult') {
+            triggerEmergencyStop(intent);
+            return true;
         }
 
-        loadScene();
-    </script>
+        // Другие глобальные интенты — просто ответить и вернуть true
+        const resolved = await MemoryTemplate.resolveResponse(intent);
+        speak(resolved.reply_text, resolved.reply_audio, resolved.ui_pulse_color || 'red');
+        if (intent.notify_parent) {
+            await Memory.addTag(SESSION_ID, 'parent_alert');
+        }
+        return true;
+    }
+
+    return { handle };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: SOFT BOUNDARY — «Дух Вредности» (приоритет 2)
+//  Проверяется ПОСЛЕ emergency, НО ДО сюжетных intent'ов сцены
+// ════════════════════════════════════════════════════════════════════
+const SoftBoundary = (() => {
+    // Ключевые слова захардкожены в движке как дополнительная защита
+    // (даже если в JSON забыли указать)
+    const FALLBACK_KEYWORDS = [
+        'не хочу','отстань','глупый','дурак','дура',
+        'сломаю','плохой','надоело','уйди','замолчи','заткнись',
+    ];
+
+    function matchInScene(text, scene) {
+        const responses = scene?.scripted_responses || {};
+        const intent    = responses['intent_boundary_testing'];
+        if (!intent) return null;
+        const t = text.toLowerCase();
+        return intent.keywords.some(k => t.includes(k)) ? intent : null;
+    }
+
+    function matchFallback(text) {
+        const t = text.toLowerCase();
+        return FALLBACK_KEYWORDS.some(k => t.includes(k));
+    }
+
+    async function handle(text, scene) {
+        const intent = matchInScene(text, scene) || (matchFallback(text) ? _defaultIntent() : null);
+        if (!intent) return false;
+
+        console.log('[SoftBoundary] Дух Вредности перехвачен');
+
+        // Оранжевый пульс
+        setIskraColor('orange');
+        // Автосброс к базовому голубому после ответа
+        const prevOnDone = () => {
+            setTimeout(() => setIskraColor('cyan'), 1200);
+            setState('idle');
+            hideCaption();
+        };
+
+        setState('speaking');
+        showCaption(intent.reply_text);
+
+        const audio = intent.reply_audio ? new Audio(BOOK_PATH + intent.reply_audio) : null;
+        if (audio) {
+            audio.onended = prevOnDone;
+            audio.onerror = () => { speakTTS(intent.reply_text); prevOnDone(); };
+            audio.play().catch(() => { speakTTS(intent.reply_text); prevOnDone(); });
+        } else {
+            const u = new SpeechSynthesisUtterance(intent.reply_text);
+            u.lang  = 'ru-RU'; u.rate = 0.88; u.pitch = 1.1;
+            if (synthVoice) u.voice = synthVoice;
+            u.onend = u.onerror = prevOnDone;
+            speechSynthesis.speak(u);
+        }
+
+        // Сохраняем вектор
+        await Memory.addTag(SESSION_ID, intent.memory_vector || 'tested_boundaries_mild');
+        await Memory.saveChoice(SESSION_ID, 'boundary_test');
+
+        return true;
+    }
+
+    function _defaultIntent() {
+        return {
+            reply_speaker: 'iskra',
+            reply_text:    'Ой-ой-ой, дух Вредности пробрался! Но мы умнее — фух, улетел! Так, продолжаем?',
+            reply_audio:   'audio/isk_boundary_cave.mp3',
+            memory_vector: 'tested_boundaries_mild',
+            ui_pulse_color:'orange',
+        };
+    }
+
+    return { handle };
+})();
+// ════════════════════════════════════════════════════════════════════
+function triggerEmergencyStop(intent) {
+    setIskraColor('red');
+    setState('speaking');
+
+    const screen = document.getElementById('emergency-screen');
+    document.getElementById('emergency-text').textContent = intent.reply_text;
+    screen.classList.add('active');
+
+    // Озвучить
+    speakText(intent.reply_text, intent.reply_audio);
+
+    // Лог для Маяка
+    Memory.addTag(SESSION_ID, 'emergency_triggered');
+}
+
+document.getElementById('emergency-resume').addEventListener('click', () => {
+    document.getElementById('emergency-screen').classList.remove('active');
+    setIskraColor('cyan');
+    setState('idle');
+    speak('Я здесь. Рада, что взрослый рядом. Продолжим?');
+});
+
+// ════════════════════════════════════════════════════════════════════
+//  МОДУЛЬ: DIALOG ENGINE — локальные intent'ы + биопамять
+// ════════════════════════════════════════════════════════════════════
+const Dialog = (() => {
+    const TAG_MAP = {
+        'смелость':     ['пещер','пойти','не боюсь','вперёд'],
+        'осторожность': ['подождать','остаться','страшно'],
+        'любопытство':  ['почему','что это','расскажи','интересно'],
+        'грусть':       ['грустно','плохо','устал','скучно'],
+        'радость':      ['здорово','весело','нравится','люблю'],
+    };
+
+    // Найти совпадение в scripted_responses сцены
+    function matchIntent(text, responses) {
+        const t = text.toLowerCase();
+        for (const [key, resp] of Object.entries(responses)) {
+            if (key === 'fallback') continue;
+            if (resp.keywords && resp.keywords.some(k => t.includes(k.toLowerCase()))) {
+                return { key, resp };
+            }
+        }
+        return null;
+    }
+
+    async function getReply(text, scene) {
+        const responses = scene.scripted_responses || {};
+        const hit = matchIntent(text, responses);
+        const resp = hit ? hit.resp : (responses.fallback || null);
+        if (!resp) return { text: `Я слышу тебя. Расскажи ещё.`, audio: null, color: 'cyan', vector: null, matchedKeyword: null };
+
+        // Найденное ключевое слово (для {matched_keyword})
+        let matchedKeyword = null;
+        if (hit && resp.keywords) {
+            const t = text.toLowerCase();
+            matchedKeyword = resp.keywords.find(k => t.includes(k.toLowerCase())) || null;
+        }
+
+        return {
+            text:           resp.reply_text,
+            audio:          resp.reply_audio,
+            color:          resp.ui_pulse_color || 'cyan',
+            vector:         resp.memory_vector  || null,
+            memoryKey:      resp.memory_key     || null,
+            matchedKeyword,
+            audioChange:    resp.audio_layer_change || null,
+        };
+    }
+
+    async function saveVector(vector, memoryKey, matchedKeyword) {
+        if (!vector) return;
+        // Подстановка {matched_keyword}
+        const resolved = vector.replace('{matched_keyword}', matchedKeyword || '');
+        await Memory.addTag(SESSION_ID, resolved);
+        // Биографическая память
+        if (memoryKey && matchedKeyword) {
+            await Memory.setBio(memoryKey, matchedKeyword);
+            console.log(`[Bio] ${memoryKey} = ${matchedKeyword}`);
+        }
+    }
+
+    async function autoTag(text) {
+        const t = text.toLowerCase();
+        for (const [tag, words] of Object.entries(TAG_MAP)) {
+            if (words.some(w => t.includes(w))) await Memory.addTag(SESSION_ID, tag);
+        }
+    }
+
+    return { getReply, saveVector, autoTag };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  CANVAS + ИСКОРКА
+// ════════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+let iskraColor  = { r: 0, g: 200, b: 255 };   // текущий цвет (RGB)
+let iskraState  = 'idle';
+let audioCtx, analyser, micData;
+let idleTick = 0, spinTick = 0;
+
+function setIskraColor(nameOrHex) {
+    const hex = COLOR_MAP[nameOrHex?.toLowerCase()] || nameOrHex || '#00c8ff';
+    const m   = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if (m) iskraColor = { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) };
+}
+
+function c(alpha) {
+    const { r, g, b } = iskraColor;
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+function drawIskra(vol = 0) {
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (iskraState === 'idle')     { idleTick += 0.035; vol = 3 + Math.sin(idleTick) * 2; }
+    if (iskraState === 'thinking') { spinTick += 0.055; vol = 6 + Math.sin(spinTick * 2) * 3; }
+
+    const r = 5 + vol * 1.8;
+
+    const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 5);
+    aura.addColorStop(0, c(0.22)); aura.addColorStop(0.5, c(0.04)); aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(cx, cy, r * 5, 0, Math.PI*2); ctx.fill();
+
+    const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.5);
+    grd.addColorStop(0, c(0.95)); grd.addColorStop(0.3, c(0.3)); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI*2); ctx.fill();
+
+    if (micData && (iskraState === 'listening' || iskraState === 'speaking')) {
+        analyser.getByteFrequencyData(micData);
+        ctx.beginPath();
+        for (let i = 0; i < micData.length; i += 4) {
+            const a = (i / micData.length) * Math.PI * 2;
+            const d = micData[i] * 1.4;
+            ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+            ctx.lineTo(cx + Math.cos(a)*(r+d), cy + Math.sin(a)*(r+d));
+        }
+        ctx.strokeStyle = c(0.3); ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    if (iskraState === 'thinking') {
+        for (let i = 0; i < 12; i++) {
+            const a = spinTick + (i/12)*Math.PI*2;
+            const d = 28 + Math.sin(spinTick*3+i)*14;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+            ctx.lineTo(cx + Math.cos(a)*(r+d), cy + Math.sin(a)*(r+d));
+            ctx.strokeStyle = c(0.2); ctx.lineWidth = 0.8; ctx.stroke();
+        }
+    }
+}
+
+function getVol() {
+    if (!analyser || !micData) return 0;
+    analyser.getByteFrequencyData(micData);
+    let s = 0; for (let i=0; i<128; i++) s += micData[i];
+    return s/128;
+}
+
+(function loop() { requestAnimationFrame(loop); drawIskra(getVol()); })();
+
+const STATUS_LABELS = { idle:'Коснись, чтобы говорить', listening:'Я слышу тебя…', thinking:'Думаю…', speaking:'Говорю…' };
+function setState(s) { iskraState = s; document.getElementById('status').textContent = STATUS_LABELS[s] || ''; }
+function showCaption(t) { const el=document.getElementById('caption'); el.textContent=t; el.style.opacity='1'; }
+function hideCaption() { document.getElementById('caption').style.opacity='0'; }
+
+// ════════════════════════════════════════════════════════════════════
+//  STT
+// ════════════════════════════════════════════════════════════════════
+let speechRec = null;
+function initSTT() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    speechRec = new SR();
+    speechRec.lang = 'ru-RU'; speechRec.continuous = false; speechRec.interimResults = false;
+    speechRec.onresult = e => onChildSpoke(e.results[0][0].transcript.trim());
+    speechRec.onerror  = e => { if (e.error !== 'no-speech') setState('idle'); };
+    speechRec.onend    = () => { if (iskraState === 'listening') setState('idle'); };
+}
+function startListening() {
+    if (!speechRec || iskraState !== 'idle') return;
+    try { speechRec.start(); setState('listening'); } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  TTS + АУДИО
+// ════════════════════════════════════════════════════════════════════
+let synthVoice = null;
+function initTTS() {
+    const load = () => { const v = speechSynthesis.getVoices(); synthVoice = v.find(v=>v.lang==='ru-RU')||null; };
+    speechSynthesis.onvoiceschanged = load; load();
+}
+
+function speakText(text, audioFile) {
+    // Пробуем воспроизвести готовый аудиофайл из пакета
+    if (audioFile) {
+        const audio = new Audio(BOOK_PATH + audioFile);
+        audio.oncanplay = () => audio.play().catch(() => speakTTS(text));
+        audio.onerror   = () => speakTTS(text);
+        return;
+    }
+    speakTTS(text);
+}
+
+function speakTTS(text) {
+    if (!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU'; u.rate = 0.88; u.pitch = 1.05;
+    if (synthVoice) u.voice = synthVoice;
+    speechSynthesis.speak(u);
+}
+
+function speak(text, audioFile, colorName, onDone) {
+    if (!text) { onDone?.(); return; }
+    if (colorName) setIskraColor(colorName);
+    setState('speaking');
+    showCaption(text);
+
+    const audio = audioFile ? new Audio(BOOK_PATH + audioFile) : null;
+
+    const finish = () => { hideCaption(); setState('idle'); onDone?.(); };
+
+    if (audio) {
+        audio.onended = finish;
+        audio.onerror = () => { speakTTS(text); finish(); };
+        audio.play().catch(() => { speakTTS(text); finish(); });
+    } else {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ru-RU'; u.rate = 0.88; u.pitch = 1.05;
+        if (synthVoice) u.voice = synthVoice;
+        u.onend = u.onerror = finish;
+        speechSynthesis.speak(u);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  НАВИГАЦИЯ ПО КНИГЕ
+// ════════════════════════════════════════════════════════════════════
+let currentScene = null, currentChapterId = null;
+
+async function loadCurrentScene() {
+    let p = await Memory.getProgress(SESSION_ID);
+    if (!p) {
+        const start = BookEngine.getStarting();
+        await Memory.setProgress(SESSION_ID, start.chapterId, start.sceneId, 0);
+        p = { chapter_id: start.chapterId, scene_id: start.sceneId, turn_count: 0 };
+    }
+    currentChapterId = p.chapter_id;
+    currentScene = await BookEngine.getScene(p.chapter_id, p.scene_id);
+    return currentScene;
+}
+
+async function playScene(scene) {
+    currentScene = scene;
+    if (!scene.intro_event) { setState('idle'); return; }
+
+    // Разрешить шаблоны {memory:*} во вступлении
+    const intro = await MemoryTemplate.resolveEvent(scene.intro_event);
+
+    // Применить цвет Искорки
+    if (intro.ui_pulse_color) setIskraColor(intro.ui_pulse_color);
+
+    speak(intro.text, intro.audio_file, null, () => {
+        if (scene.mode === 'ask_choice') showChoiceHint(scene);
+        else setState('idle');
+    });
+}
+
+function showChoiceHint(scene) {
+    const labels = (scene.choices || []).map(c => c.label).join(' · ');
+    showCaption(labels);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  ГЛАВНАЯ ЛОГИКА — обработка речи ребёнка
+// ════════════════════════════════════════════════════════════════════
+async function onChildSpoke(text) {
+    if (!text) return;
+    setState('thinking');
+    await Memory.saveUtterance(SESSION_ID, text);
+    await Dialog.autoTag(text);
+
+    // 1. ПРИОРИТЕТ 1 — Стоп-кран (жизнь/безопасность)
+    const handled = await GlobalIntents.handle(text);
+    if (handled) return;
+
+    // 2. ПРИОРИТЕТ 2 — Мягкий стоп-кран (дух Вредности)
+    const softHandled = await SoftBoundary.handle(text, currentScene);
+    if (softHandled) return;
+
+    // 3. Локальные intent'ы сцены
+    const scene = currentScene;
+    if (!scene) { speak(`Расскажи мне, ${CHILD_NAME}.`); return; }
+
+    if (scene.mode === 'ask_choice') {
+        const choice = matchChoice(text, scene.choices || []);
+        if (choice) {
+            await Memory.saveChoice(SESSION_ID, choice.id);
+            await Memory.addTag(SESSION_ID, choice.memory_vector || choice.id);
+            const found = await BookEngine.findScene(choice.next_scene);
+            if (found) {
+                await Memory.setProgress(SESSION_ID, found.chapterId, choice.next_scene, 0);
+                speak('Хорошо.', null, null, () => playScene(found.scene));
+            }
+            return;
+        }
+        // Не поняли — повторить варианты
+        const fallback = scene.scripted_responses?.fallback;
+        if (fallback) speak(fallback.reply_text, fallback.reply_audio); 
+        else speak(`Скажи: ${(scene.choices||[]).map(c=>c.label).join(' или ')}?`);
+        return;
+    }
+
+    // free_talk
+    const reply = await Dialog.getReply(text, scene);
+
+    // Сохраняем вектор памяти (включая биографическую)
+    await Dialog.saveVector(reply.vector, reply.memoryKey, reply.matchedKeyword);
+
+    // Разрешаем цвет (может быть {memory:user_fav_color})
+    const colorName = await MemoryTemplate.resolve(reply.color);
+    setIskraColor(colorName);
+
+    const turns = await Memory.incrementTurn(SESSION_ID);
+
+    if (scene.max_turns && turns >= scene.max_turns && scene.on_end) {
+        speak(reply.text, reply.audio, null, async () => {
+            const found = await BookEngine.findScene(scene.on_end);
+            if (found) {
+                await Memory.setProgress(SESSION_ID, found.chapterId, scene.on_end, 0);
+                playScene(found.scene);
+            }
+        });
+    } else {
+        speak(reply.text, reply.audio);
+    }
+}
+
+function matchChoice(text, choices) {
+    const t = text.toLowerCase();
+    for (const c of choices) {
+        if ((c.keywords || []).some(k => t.includes(k.toLowerCase()))) return c;
+        if (c.label.toLowerCase().split(' ').some(w => w.length > 3 && t.includes(w))) return c;
+    }
+    return null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  НОЧНОЙ МАЯК
+// ════════════════════════════════════════════════════════════════════
+const NightBeacon = (() => {
+    const URL = 'http://lighthouse:8001/beacon';
+    const KEY = 'iskra_last_sync';
+    const DAY = 86400000;
+    async function trySync() {
+        if (Date.now() - parseInt(localStorage.getItem(KEY)||'0') < DAY) return;
+        if (navigator.connection?.type === 'cellular') return;
+        const queue = await Memory.getSyncQueue();
+        if (!queue.length) return;
+        const batch = {
+            device_id:  getDeviceId(),
+            session_id: SESSION_ID,
+            synced_at:  new Date().toISOString(),
+            events: queue.map(e => ({
+                type: e.type,
+                ts:   e.ts,
+                ...(e.choice_id && { choice_id: e.choice_id }),
+                ...(e.tag       && { tag: e.tag }),
+                ...(e.key       && { bio_key: e.key }),
+            })),
+        };
+        try {
+            const res = await fetch(URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(batch), signal:AbortSignal.timeout(10000) });
+            if (res.ok) { await Memory.clearSyncQueue(); localStorage.setItem(KEY, Date.now().toString()); }
+        } catch(e) { /* offline — попробуем завтра */ }
+    }
+    function getDeviceId() {
+        let id = localStorage.getItem('iskra_device_id');
+        if (!id) { id = 'dev_' + Math.random().toString(36).slice(2); localStorage.setItem('iskra_device_id', id); }
+        return id;
+    }
+    return { trySync };
+})();
+
+// ════════════════════════════════════════════════════════════════════
+//  ЗАПУСК
+// ════════════════════════════════════════════════════════════════════
+async function start() {
+    document.getElementById('start-screen').style.display = 'none';
+    setState('thinking');
+
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        micData = new Uint8Array(analyser.frequencyBinCount);
+    } catch(e) { console.error('[Mic]', e); }
+
+    initSTT(); initTTS();
+    await Memory.open();
+
+    try {
+        await BookEngine.init();
+        const scene = await loadCurrentScene();
+        speak(`Привет, ${CHILD_NAME}. Добро пожаловать в Грондхейм.`, null, 'cyan', () => playScene(scene));
+    } catch(e) {
+        console.warn('[BookEngine]', e);
+        speak(`Привет, ${CHILD_NAME}. Я здесь.`, null, 'cyan', () => setState('idle'));
+    }
+
+    setTimeout(() => NightBeacon.trySync(), 5000);
+}
+
+document.getElementById('start-btn').addEventListener('click', start);
+canvas.addEventListener('click',      () => { if (iskraState === 'idle') startListening(); });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); if (iskraState === 'idle') startListening(); }, { passive: false });
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
 </body>
 </html>

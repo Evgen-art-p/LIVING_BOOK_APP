@@ -1,0 +1,281 @@
+{
+  "chapter_id": "ch_01",
+  "title": "Пробуждение",
+
+  "scenes": [
+
+    {
+      "scene_id": "cave_entrance",
+      "mode": "free_talk",
+      "max_turns": 5,
+      "on_end": "cave_moss",
+
+      "audio_layer": {
+        "ambient":     "audio/amb_cave_wind.mp3",
+        "foley_intro": "audio/fol_steps_moss.mp3",
+        "spatial": {
+          "ambient_position": { "azimuth": 0,  "distance": 5.0 },
+          "speaker_position": { "azimuth": 30, "distance": 1.5 }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "eirik",
+        "text": "Смотри... это северное сияние Грондхейма! А под ногами тот самый щекочущий мох. Скажи мне — какой цвет ты любишь больше всего?",
+        "audio_file": "audio/eirik_intro_01.mp3",
+        "wait_for_user": true
+      },
+
+      "scripted_responses": {
+
+        "intent_boundary_testing": {
+          "keywords": ["не хочу", "отстань", "глупый", "дурак", "дура", "сломаю", "плохой", "надоело", "скучно", "уйди", "замолчи", "заткнись"],
+          "reply_speaker": "iskra",
+          "reply_text": "Ой-ой-ой, как искры во все стороны полетели! Кажется, к нам в Грондхейм пробрался дух Вредности и пытается нас поссорить. Но мы-то с тобой умнее! Давай стряхнем его... фух, улетел! Так, на чём мы остановились? Ах да — ты ещё не сказал мне свой любимый цвет!",
+          "reply_audio": "audio/isk_boundary_cave.mp3",
+          "memory_vector": "tested_boundaries_mild",
+          "ui_pulse_color": "orange"
+        },
+
+        "intent_favorite_color": {
+          "keywords": [
+            "красный", "синий", "зелёный", "зеленый", "жёлтый", "желтый",
+            "фиолетовый", "розовый", "оранжевый", "белый", "голубой",
+            "чёрный", "черный", "золотой", "серебряный"
+          ],
+          "reply_speaker": "iskra",
+          "reply_text": "Какой красивый цвет! Я запомню это. Знаешь, в Грондхейме магия часто принимает цвет того, что мы любим больше всего.",
+          "reply_audio": "audio/isk_color_ack.mp3",
+          "memory_vector": "user_fav_color_{matched_keyword}",
+          "memory_key": "user_fav_color",
+          "ui_pulse_color": "{matched_keyword}"
+        },
+
+        "intent_fear": {
+          "keywords": ["страшно", "боюсь", "темно", "уйди", "кто здесь", "не хочу", "пусти"],
+          "reply_speaker": "iskra",
+          "reply_text": "Здесь и правда очень темно... Но знаешь, даже одна маленькая искра может разогнать мрак. Как ты думаешь, мы справимся вместе?",
+          "reply_audio": "audio/isk_fear_empathy.mp3",
+          "memory_vector": "acknowledged_fear",
+          "ui_pulse_color": "cyan",
+          "audio_layer_change": { "ambient": "audio/amb_cave_soft.mp3" }
+        },
+
+        "intent_curiosity": {
+          "keywords": ["вау", "что это", "красиво", "свет", "искорка", "откуда", "как", "почему"],
+          "reply_speaker": "iskra",
+          "reply_text": "Я спала в этом мху целую вечность... Твой голос разбудил меня. Куда мы пойдём дальше?",
+          "reply_audio": "audio/isk_curious_reply.mp3",
+          "memory_vector": "sparked_curiosity",
+          "ui_pulse_color": "yellow"
+        },
+
+        "intent_brave": {
+          "keywords": ["пойдём", "вперёд", "не боюсь", "идём", "давай", "хочу", "интересно"],
+          "reply_speaker": "eirik",
+          "reply_text": "Вот это по-грондхеймски! Но сначала — прислушайся. Слышишь, как капает вода? Что она тебе говорит?",
+          "reply_audio": "audio/eirik_brave_reply.mp3",
+          "memory_vector": "shows_bravery",
+          "ui_pulse_color": "green",
+          "audio_layer_change": { "foley": "audio/fol_water_drip.mp3" }
+        },
+
+        "intent_sad": {
+          "keywords": ["грустно", "скучно", "устал", "не знаю", "плохо", "домой"],
+          "reply_speaker": "iskra",
+          "reply_text": "Я слышу тебя. Иногда внутри бывает тяжело, как камень в кармане. Расскажи мне — что именно сейчас тяжело?",
+          "reply_audio": "audio/isk_sad_empathy.mp3",
+          "memory_vector": "felt_heavy",
+          "ui_pulse_color": "blue"
+        },
+
+        "fallback": {
+          "reply_speaker": "eirik",
+          "reply_text": "Гномьи уши уже не те! Подойди поближе и скажи громче, дружище.",
+          "reply_audio": "audio/eirik_fallback.mp3",
+          "memory_vector": null
+        }
+      }
+    },
+
+    {
+      "scene_id": "cave_moss",
+      "mode": "free_talk",
+      "max_turns": 3,
+      "on_end": "crystal_cave",
+
+      "audio_layer": {
+        "ambient":     "audio/amb_cave_deep.mp3",
+        "foley_intro": "audio/fol_moss_rustle.mp3",
+        "spatial": {
+          "ambient_position": { "azimuth": 180, "distance": 6.0 },
+          "speaker_position": { "azimuth": -20, "distance": 1.2 }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "iskra",
+        "text": "Ой, смотри — мох светится! Он тёплый на ощупь. Такое ощущение, будто земля здесь живая.",
+        "audio_file": "audio/isk_moss_intro.mp3",
+        "wait_for_user": true
+      },
+
+      "scripted_responses": {
+
+        "intent_boundary_testing": {
+          "keywords": ["не хочу", "отстань", "глупый", "дурак", "дура", "сломаю", "плохой", "надоело", "скучно", "уйди", "замолчи", "заткнись"],
+          "reply_speaker": "iskra",
+          "reply_text": "Снова дух Вредности! Уже второй раз пробирается. Хитрый! Вот что, давай мы с тобой придумаем пароль, чтобы он больше не смог войти. Какое слово выбираешь?",
+          "reply_audio": "audio/isk_boundary_moss.mp3",
+          "memory_vector": "tested_boundaries_mild",
+          "ui_pulse_color": "orange"
+        },
+
+        "intent_touch": {
+          "keywords": ["трогаю", "потрогать", "коснуться", "тёплый", "мягкий", "руки", "пальцы"],
+          "reply_speaker": "iskra",
+          "reply_text": "Чувствуешь? Он будто дышит. Я думаю, мох помнит всех, кто проходил здесь до нас. Как ты думаешь — что он помнит о тебе?",
+          "reply_audio": "audio/isk_touch_reply.mp3",
+          "memory_vector": "sensory_explorer",
+          "ui_pulse_color": "green"
+        },
+
+        "intent_question": {
+          "keywords": ["почему", "зачем", "как так", "что это", "откуда свет"],
+          "reply_speaker": "eirik",
+          "reply_text": "Хороший вопрос, дружище. Вот именно — почему мох светится? Что бы ты ответил?",
+          "reply_audio": "audio/eirik_question_reply.mp3",
+          "memory_vector": "asks_why",
+          "ui_pulse_color": "yellow"
+        },
+
+        "intent_scared_dark": {
+          "keywords": ["темно", "не вижу", "страшно", "потеряюсь", "один", "одна"],
+          "reply_speaker": "iskra",
+          "reply_text": "Ты не один здесь. Я рядом — чувствуешь моё свечение? Когда ещё ты чувствовал что кто-то рядом, даже в темноте?",
+          "reply_audio": "audio/isk_dark_comfort.mp3",
+          "memory_vector": "needs_presence",
+          "ui_pulse_color": "cyan"
+        },
+
+        "fallback": {
+          "reply_speaker": "eirik",
+          "reply_text": "Хм. Мох, кажется, тоже задумался. Попробуй сказать иначе?",
+          "reply_audio": "audio/eirik_fallback_2.mp3",
+          "memory_vector": null
+        }
+      }
+    },
+
+    {
+      "scene_id": "crystal_cave",
+      "mode": "free_talk",
+      "max_turns": 3,
+      "on_end": "cave_choice",
+
+      "audio_layer": {
+        "ambient":     "audio/amb_crystals_hum.mp3",
+        "foley_intro": "audio/fol_crystal_chime.mp3",
+        "spatial": {
+          "ambient_position": { "azimuth": 0, "distance": 4.0 },
+          "speaker_position": { "azimuth": 10, "distance": 1.0 }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "iskra",
+        "text": "Смотри! Этот кристалл светится... он светится твоим любимым цветом! Как здорово, что мы нашли его вместе.",
+        "audio_file_template": "audio/isk_crystal_{memory:user_fav_color}.mp3",
+        "audio_file_fallback": "audio/isk_crystal_default.mp3",
+        "ui_pulse_color": "{memory:user_fav_color}",
+        "ui_pulse_color_fallback": "cyan",
+        "wait_for_user": true
+      },
+
+      "scripted_responses": {
+
+        "intent_boundary_testing": {
+          "keywords": ["не хочу", "отстань", "глупый", "дурак", "дура", "сломаю", "плохой", "надоело", "скучно", "уйди", "замолчи", "заткнись"],
+          "reply_speaker": "iskra",
+          "reply_text": "Ой! Смотри — кристалл от духа Вредности даже потускнел! Давай-ка мы его прогоним вместе: скажи громко «уходи, Вредность!». Помогает стопроцентно.",
+          "reply_audio": "audio/isk_boundary_crystal.mp3",
+          "memory_vector": "tested_boundaries_mild",
+          "ui_pulse_color": "orange"
+        },
+
+        "intent_wonder": {
+          "keywords": ["wow", "вау", "невероятно", "мой цвет", "как ты знала", "магия", "волшебство"],
+          "reply_speaker": "iskra",
+          "reply_text": "Грондхейм слышит нас. Этот кристалл — твой. Как ты думаешь, что он умеет делать?",
+          "reply_audio": "audio/isk_wonder_reply.mp3",
+          "memory_vector": "bonded_with_crystal",
+          "ui_pulse_color": "{memory:user_fav_color}"
+        },
+
+        "intent_take": {
+          "keywords": ["возьму", "взять", "моё", "забрать", "держу", "карман"],
+          "reply_speaker": "eirik",
+          "reply_text": "Осторожно, дружище! Кристаллы Грондхейма нельзя просто так взять. Сначала нужно с ним познакомиться. Как ты думаешь, как знакомятся с кристаллами?",
+          "reply_audio": "audio/eirik_crystal_warning.mp3",
+          "memory_vector": "wants_to_own",
+          "ui_pulse_color": "yellow"
+        },
+
+        "fallback": {
+          "reply_speaker": "iskra",
+          "reply_text": "Кристалл мигнул... Кажется, он тоже хочет что-то сказать. Что ты чувствуешь рядом с ним?",
+          "reply_audio": "audio/isk_crystal_fallback.mp3",
+          "memory_vector": null,
+          "ui_pulse_color": "{memory:user_fav_color}"
+        }
+      }
+    },
+
+    {
+      "scene_id": "cave_choice",
+      "mode": "ask_choice",
+
+      "audio_layer": {
+        "ambient": "audio/amb_crossroads.mp3",
+        "spatial": {
+          "left_path":  { "azimuth": -60, "distance": 3.0, "file": "audio/fol_wind_left.mp3" },
+          "right_path": { "azimuth":  60, "distance": 3.0, "file": "audio/fol_crystals_right.mp3" }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "eirik",
+        "text": "Туннель раздваивается. Слева — ветер и выход. Справа — мерцание в глубине. Куда пойдём?",
+        "audio_file": "audio/eirik_crossroads.mp3",
+        "wait_for_user": false
+      },
+
+      "choices": [
+        {
+          "id": "go_left_exit",
+          "label": "Идти к выходу",
+          "keywords": ["налево", "выход", "наружу", "домой", "уйти", "обратно", "ветер"],
+          "memory_vector": "chose_safety",
+          "next_scene": "ch_02:tunnel_exit"
+        },
+        {
+          "id": "go_right_deep",
+          "label": "Идти в глубину",
+          "keywords": ["направо", "глубже", "мерцает", "посмотреть", "вперёд", "туда", "тайна"],
+          "memory_vector": "chose_depth",
+          "next_scene": "ch_02:tunnel_crystals"
+        }
+      ],
+
+      "scripted_responses": {
+        "fallback": {
+          "reply_speaker": "eirik",
+          "reply_text": "Налево — ветер и выход. Направо — мерцание и тайна. Что выбираешь?",
+          "reply_audio": "audio/eirik_choice_repeat.mp3",
+          "memory_vector": null
+        }
+      }
+    }
+
+  ]
+}
