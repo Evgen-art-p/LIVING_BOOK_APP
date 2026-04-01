@@ -28,8 +28,8 @@
   },
 
   "chapters": [
-    { "id": "ch_01", "title": "Пробуждение",       "file": "chapters/ch01_awakening.json" },
-    { "id": "ch_02", "title": "Мерцающий туннель", "file": "chapters/ch02_tunnel.json"   }
+    { "id": "ch_01", "title": "Пробуждение",       "file": "chapters/ch_01_awakening.json" },
+    { "id": "ch_02", "title": "Мерцающий туннель", "file": "chapters/ch_02_tunnel.json"   }
   ],
 
   "characters": [

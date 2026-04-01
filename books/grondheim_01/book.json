@@ -13,6 +13,6 @@
     { "id": "eirik", "file": "characters/eirik.json" },
     { "id": "loka",  "file": "characters/loka.json" }
   ],
-  "starting_chapter": "ch01",
+  "starting_chapter": "ch_01",
   "starting_scene": "scene_01"
 }
