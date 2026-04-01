@@ -1,6 +1,6 @@
 // sw.js — Service Worker. Кэш для полного офлайн-режима.
 
-const CACHE     = 'iskra-fort-v1';
+const CACHE     = 'iskra-fort-v2';
 const BOOK_PATH = '../books/grondheim_01/';
 
 // Файлы которые кэшируем при установке

@@ -336,10 +336,23 @@ const BookEngine = (() => {
         if (cache[chId]) return cache[chId];
         const meta = book.chapters.find(c => c.id === chId);
         if (!meta) throw new Error(`Глава не найдена: ${chId}`);
-        const data = await loadJSON(BOOK_PATH + meta.file);
+        
+        // ПРОВЕРКА: Если в пути вдруг дублируется chapters, мы это поправим
+        let filePath = meta.file;
+        const data = await loadJSON(BOOK_PATH + filePath);
+        
+        if (!data || !data.scenes) {
+            console.error(`[BookEngine] Файл ${filePath} пуст или не содержит сцен!`);
+            return null;
+        }
+
         data._index = {};
-        for (const s of data.scenes) data._index[s.scene_id] = s;
+        for (const s of data.scenes) {
+            if (s.scene_id) data._index[s.scene_id] = s;
+        }
+        
         cache[chId] = data;
+        console.log(`[BookEngine] Глава ${chId} загружена, сцен:`, data.scenes.length);
         return data;
     }
 
@@ -359,7 +372,13 @@ const BookEngine = (() => {
     function getStarting()       { return { chapterId: book.starting_chapter, sceneId: book.starting_scene }; }
     function getGlobalIntents()  { return book.global_intents || {}; }
 
-    return { init, getScene, findScene, getStarting, getGlobalIntents };
+    // Последний резерв: первая сцена из главы по порядку в массиве
+    async function getFirstScene(chId) {
+        const ch = await _loadChapter(chId);
+        return ch?.scenes?.[0] || null;
+    }
+
+    return { init, getScene, findScene, getStarting, getGlobalIntents, getFirstScene };
 })();
 
 // ════════════════════════════════════════════════════════════════════
@@ -728,17 +747,38 @@ let currentScene = null, currentChapterId = null;
 
 async function loadCurrentScene() {
     let p = await Memory.getProgress(SESSION_ID);
-    if (!p) {
-        const start = BookEngine.getStarting();
+    const start = BookEngine.getStarting(); // chapterId + sceneId из book.json
+
+    // Сброс: если прогресс пуст или scene_id отсутствует
+    if (!p || !p.scene_id) {
+        console.log("Лока: Прогресс пуст — ставлю старт из конфига...");
         await Memory.setProgress(SESSION_ID, start.chapterId, start.sceneId, 0);
         p = { chapter_id: start.chapterId, scene_id: start.sceneId, turn_count: 0 };
     }
+
     currentChapterId = p.chapter_id;
     currentScene = await BookEngine.getScene(p.chapter_id, p.scene_id);
+
+    // Если сохранённая сцена не найдена — сбрасываем на starting_scene из конфига
+    if (!currentScene) {
+        console.warn('Лока: Сохранённая сцена не найдена — сбрасываю на стартовую...');
+        await Memory.setProgress(SESSION_ID, start.chapterId, start.sceneId, 0);
+        currentChapterId = start.chapterId;
+        currentScene = await BookEngine.getScene(start.chapterId, start.sceneId);
+    }
+
+    // Последний резерв: берём первую сцену из главы по индексу
+    if (!currentScene) {
+        console.error('Лока: Стартовая сцена тоже не найдена! Беру первую из главы...');
+        currentScene = await BookEngine.getFirstScene(start.chapterId);
+    }
+
     return currentScene;
 }
 
 async function playScene(scene) {
+    // Fix 2: защита от null — не падаем на .intro_event
+    if (!scene) { console.warn('[playScene] scene is null, aborting'); setState('idle'); return; }
     currentScene = scene;
     if (!scene.intro_event) { setState('idle'); return; }
 
@@ -837,7 +877,7 @@ function matchChoice(text, choices) {
 //  НОЧНОЙ МАЯК
 // ════════════════════════════════════════════════════════════════════
 const NightBeacon = (() => {
-    const URL = 'http://lighthouse:8001/beacon';
+    const URL = 'http://127.0.0.1:8001/beacon';
     const KEY = 'iskra_last_sync';
     const DAY = 86400000;
     async function trySync() {
