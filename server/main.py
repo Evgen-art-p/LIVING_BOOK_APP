@@ -87,49 +87,30 @@ async def parent_stats():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 2. Генерация сказки через Open Router
+# 2. Генерация сказки через Студию
 # ═══════════════════════════════════════════════════════════════════
 @app.post("/api/studio/generate")
 async def generate_story(request: GenerateRequest):
-    print(f"📖 Заказ: {request.child_name}, {request.child_age}, {request.task_context}")
+    print(f"📖 Заказ в Студию: {request.child_name}, {request.child_age}, {request.task_context}")
     
-    # Шаг 1: SET собирает MASTER BRIEF
-    master_brief = await call_set(request)
-    print(f"✅ MASTER BRIEF: {master_brief.get('project', {}).get('name', 'OK')}")
+    STUDIO_URL = "http://localhost:8080"
     
-    # Шаг 2: Фабула Фейн пишет историю
-    story = await call_fabula_fein(master_brief)
-    print(f"✅ История: {story.get('title', 'OK')}")
-    
-    # Шаг 3: Вера Душа проверяет
-    ethics = await call_vera_dusha(story)
-    print(f"✅ Проверка: {ethics.get('verdict', 'unknown')}")
-    
-    # Шаг 4: Марка Файн упаковывает
-    book_package = await call_marka_fain({
-        "master_brief": master_brief,
-        "story": story,
-        "ethics": ethics
-    })
-    print(f"✅ Упаковано")
-    
-    # Сохраняем
-    story_id = f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    child_dir = os.path.join(STORIES_ROOT, request.child_name)
-    os.makedirs(child_dir, exist_ok=True)
-    
-    story_path = os.path.join(child_dir, f"{story_id}_pending.json")
-    with open(story_path, 'w', encoding='utf-8') as f:
-        json.dump(book_package, f, ensure_ascii=False, indent=2)
-    
-    print(f"✅ Сохранено: {story_path}")
-    
-    return {
-        "status": "ok",
-        "message": f"Сказка '{story_id}' сгенерирована",
-        "story_id": story_id,
-        "child_name": request.child_name
-    }
+    try:
+        response = requests.post(
+            f"{STUDIO_URL}/api/studio/generate",
+            json={
+                "child_name": request.child_name,
+                "child_age": request.child_age,
+                "task_context": request.task_context,
+                "parent_email": request.parent_email,
+            },
+            timeout=10
+        )
+        return response.json()
+    except requests.exceptions.ConnectionError:
+        return {"status": "error", "message": "Студия не запущена на порту 8080"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════════
