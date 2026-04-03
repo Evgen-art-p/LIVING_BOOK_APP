@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alive Book — Кабинет родителя</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0c; color: #e0e0e0; min-height: 100vh; }
+
+        header { position: sticky; top: 0; z-index: 50; background: rgba(10,10,12,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid #222; padding: 16px 24px; text-align: center; }
+        .logo { font-size: 10px; letter-spacing: 0.3em; color: #7F77DD; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
+        .header-title { font-size: 1.1rem; font-weight: 300; color: white; font-style: italic; }
+        .header-title span { color: #22d3ee; font-style: normal; }
+
+        main { max-width: 480px; margin: 0 auto; padding: 0 20px 120px; }
+
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0c; border-top: 1px solid #222; padding: 12px 24px; display: flex; justify-content: space-around; z-index: 50; }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; color: #555; cursor: pointer; transition: all 0.2s; font-size: 9px; font-weight: 700; letter-spacing: 0.02em; }
+        .nav-btn.active { color: #22d3ee; transform: scale(1.08); }
+        .nav-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: #22d3ee; display: none; }
+        .nav-btn.active .dot { display: block; box-shadow: 0 0 8px rgba(34,211,238,1); }
+        .nav-icon { font-size: 18px; }
+
+        .tab { display: none; padding-top: 20px; }
+        .tab.active { display: block; }
+
+        /* Орб */
+        .orb-wrap { display: flex; flex-direction: column; align-items: center; padding: 28px 0 16px; }
+        .orb { width: 80px; height: 80px; border-radius: 50%; background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.25); display: flex; align-items: center; justify-content: center; position: relative; animation: orb-pulse 3s ease-in-out infinite; }
+        .orb-core { width: 28px; height: 28px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.5); }
+        .orb-live { position: absolute; top: -4px; right: -4px; background: #ef4444; font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 700; animation: bounce 1.5s infinite; }
+        @keyframes orb-pulse { 0%,100%{transform:scale(1);opacity:.8} 50%{transform:scale(1.05);opacity:1} }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+        .orb-label { color: #22d3ee; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 14px; }
+        .orb-sub { color: #555; font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px; }
+
+        /* Лента */
+        .feed-header { color: #888; font-size: 13px; font-weight: 500; margin-bottom: 12px; }
+        .event-card { background: #12121a; border-left: 2px solid #7F77DD; padding: 12px 14px; border-radius: 0 10px 10px 0; margin-bottom: 10px; }
+        .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .event-time { font-size: 10px; color: #555; font-family: monospace; }
+        .event-type { font-size: 9px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; }
+        .event-type.choice { background: rgba(34,211,238,0.15); color: #22d3ee; }
+        .event-type.chat { background: rgba(127,119,221,0.15); color: #AFA9EC; }
+        .event-type.artifact { background: rgba(239,159,39,0.15); color: #EF9F27; }
+        .event-type.tutor_link { background: rgba(93,202,165,0.15); color: #5DCAA5; }
+        .event-type.session_start { background: rgba(151,196,89,0.12); color: #97C459; }
+        .event-type.session_end { background: rgba(136,135,128,0.12); color: #888780; }
+        .event-text { font-size: 13px; color: #ccc; line-height: 1.5; }
+
+        /* ═══ ТЬЮТОР ЛИНК — ОБНОВЛЁННАЯ ВЕРСИЯ ═══ */
+        .tutor-box {
+            background: linear-gradient(to bottom, #12121a, #0e0e14);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px dashed rgba(6,182,212,0.3);
+            margin-top: 20px;
+        }
+        .tutor-label {
+            color: #22d3ee;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tutor-label::before {
+            content: '';
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #22d3ee;
+            box-shadow: 0 0 8px #22d3ee;
+        }
+        .tutor-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .tutor-field { display: flex; flex-direction: column; gap: 5px; }
+        .tutor-field-label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .tutor-input {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #333;
+            color: white;
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .tutor-input:focus { outline: none; border-color: #22d3ee; }
+        .tutor-textarea {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #333;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            resize: none;
+            min-height: 80px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            margin-bottom: 10px;
+        }
+        .tutor-textarea:focus { outline: none; border-color: #22d3ee; }
+        .tutor-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid #22d3ee;
+            color: #22d3ee;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .tutor-btn:hover:not(:disabled) { background: #22d3ee; color: black; }
+        .tutor-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .tutor-btn.loading::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            height: 2px;
+            background: #22d3ee;
+            animation: loading-bar 1.5s ease-in-out infinite;
+        }
+        @keyframes loading-bar {
+            0% { width: 0%; left: 0; }
+            50% { width: 100%; left: 0; }
+            100% { width: 0%; left: 100%; }
+        }
+        .tutor-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(34,211,238,0.05);
+            border: 1px solid rgba(34,211,238,0.2);
+            border-radius: 10px;
+            display: none;
+        }
+        .tutor-result.show { display: block; }
+        .tutor-result-label { font-size: 9px; color: #22d3ee; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .tutor-result-text { font-size: 12px; color: #5DCAA5; font-style: italic; line-height: 1.6; }
+        .tutor-scene-preview {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            font-size: 11px;
+            color: #888;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* Статистика */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: #12121a; padding: 16px; border-radius: 12px; text-align: center; border: 1px solid #1a1a22; }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 22px; font-weight: 600; color: white; margin-top: 4px; }
+
+        .chronicle { background: #12121a; padding: 14px; border-radius: 12px; border: 1px solid #1a1a22; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .chronicle-label { font-size: 11px; color: #7F77DD; }
+        .chronicle-text { font-size: 13px; color: white; margin-top: 2px; }
+
+        .memory-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .memory-tag { font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(127,119,221,0.12); color: #AFA9EC; }
+
+        .empty { text-align: center; padding: 40px 0; color: #444; font-size: 14px; font-style: italic; }
+
+        .toast { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); background: #22d3ee; color: black; padding: 8px 20px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; z-index: 100; display: none; box-shadow: 0 0 20px rgba(34,211,238,0.4); }
+        .toast.show { display: block; animation: toast-in 0.3s ease; }
+        .toast.error { background: #ef4444; }
+        @keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Studio Six Fingers</div>
+        <div class="header-title">Alive Book: <span>Кабинет родителя</span></div>
+    </header>
+
+    <main>
+        <!-- ЭФИР -->
+        <div class="tab active" id="tab-live">
+            <div class="orb-wrap">
+                <div class="orb">
+                    <div class="orb-core"></div>
+                    <div class="orb-live">LIVE</div>
+                </div>
+                <div class="orb-label" id="connection-label">Загрузка...</div>
+                <div class="orb-sub" id="connection-sub"></div>
+            </div>
+            <div class="feed-header">События души</div>
+            <div id="feed"></div>
+
+            <!-- ════ ТЬЮТОР ЛИНК (БОЕВАЯ ВЕРСИЯ) ════ -->
+            <div class="tutor-box">
+                <div class="tutor-label">Тьютор Линк — Отправить Заказ в Грондхейм</div>
+
+                <div class="tutor-row">
+                    <div class="tutor-field">
+                        <div class="tutor-field-label">Имя ребёнка</div>
+                        <input
+                            type="text"
+                            class="tutor-input"
+                            id="child-name"
+                            placeholder="Женя"
+                            maxlength="30"
+                        />
+                    </div>
+                    <div class="tutor-field">
+                        <div class="tutor-field-label">Возраст</div>
+                        <input
+                            type="text"
+                            class="tutor-input"
+                            id="child-age"
+                            placeholder="8"
+                            maxlength="5"
+                        />
+                    </div>
+                </div>
+
+                <div class="tutor-field" style="margin-bottom: 10px;">
+                    <div class="tutor-field-label">Контекст задачи (что важно сейчас)</div>
+                    <textarea
+                        class="tutor-textarea"
+                        id="tutor-context"
+                        placeholder="Например: Женя завтра идёт первый раз в новую секцию плавания. Боится воды и незнакомых людей."
+                        rows="4"
+                    ></textarea>
+                </div>
+
+                <button class="tutor-btn" id="send-btn" onclick="handleSendToSpark()">
+                    ✦ Внедрить в мир книги
+                </button>
+
+                <div class="tutor-result" id="tutor-result">
+                    <div class="tutor-result-label">Фабула Фейн создала сцену</div>
+                    <div class="tutor-result-text" id="tutor-result-text"></div>
+                    <div class="tutor-scene-preview" id="tutor-scene-preview"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ПАМЯТЬ -->
+        <div class="tab" id="tab-memory">
+            <h2 style="font-size:18px;font-weight:300;color:white;margin-bottom:6px;padding-top:16px;">Хроники Грондхейма</h2>
+            <p style="font-size:13px;color:#666;margin-bottom:16px;">Все выборы и путешествия ребёнка.</p>
+            <div id="choices-list"></div>
+            <div class="memory-tags" id="memory-tags"></div>
+        </div>
+
+        <!-- СТАТ -->
+        <div class="tab" id="tab-stats">
+            <h2 style="font-size:18px;font-weight:300;color:white;margin-bottom:16px;padding-top:16px;">Статистика</h2>
+            <div class="stats-grid" id="stats-grid"></div>
+            <div id="artifacts-section"></div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <nav>
+        <button class="nav-btn active" onclick="switchTab('live', event)">
+            <span class="nav-icon">📡</span>ЭФИР<span class="dot"></span>
+        </button>
+        <button class="nav-btn" onclick="switchTab('memory', event)">
+            <span class="nav-icon">📜</span>ПАМЯТЬ<span class="dot"></span>
+        </button>
+        <button class="nav-btn" onclick="switchTab('stats', event)">
+            <span class="nav-icon">📊</span>СТАТ<span class="dot"></span>
+        </button>
+    </nav>
+
+    <script>
+        const API         = 'http://localhost:8000';
+        const STUDIO_API  = 'http://127.0.0.1:8001';
+
+        // ── Навигация ──
+        function switchTab(name, e) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            if (e) e.currentTarget.classList.add('active');
+
+            if (name === 'live')   loadFeed();
+            if (name === 'memory') loadMemory();
+            if (name === 'stats')  loadStats();
+        }
+
+        // ── Тост ──
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        // ════════════════════════════════════════════════
+        //  ТЬЮТОР ЛИНК — handleSendToSpark (БОЕВОЙ)
+        // ════════════════════════════════════════════════
+        async function handleSendToSpark() {
+            const childName   = document.getElementById('child-name').value.trim();
+            const childAge    = document.getElementById('child-age').value.trim() || '7-12';
+            const taskContext = document.getElementById('tutor-context').value.trim();
+
+            if (!childName) { showToast('Введи имя ребёнка', true); return; }
+            if (!taskContext) { showToast('Опиши контекст задачи', true); return; }
+
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.textContent = '✦ Фабула Фейн пишет сцену...';
+            btn.classList.add('loading');
+
+            document.getElementById('tutor-result').classList.remove('show');
+
+            try {
+                const res = await fetch(`${STUDIO_API}/api/studio/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        child_name:   childName,
+                        child_age:    childAge,
+                        task_context: taskContext,
+                    }),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+
+                // Показываем результат
+                const intro = data.scene?.scenes?.[0]?.intro_event?.text || '(нет текста)';
+                document.getElementById('tutor-result-text').textContent =
+                    `Для ${childName}: "${intro}"`;
+                document.getElementById('tutor-scene-preview').textContent =
+                    JSON.stringify(data.scene, null, 2).slice(0, 600) + '...';
+                document.getElementById('tutor-result').classList.add('show');
+
+                showToast(`Сцена для ${childName} готова! Нажми DEV SYNC в плеере.`);
+
+                // Сохраняем имя ребёнка для удобства
+                localStorage.setItem('last_child_name', childName);
+
+            } catch (e) {
+                showToast(`Ошибка: ${e.message}`, true);
+                console.error('[handleSendToSpark]', e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✦ Внедрить в мир книги';
+                btn.classList.remove('loading');
+            }
+        }
+
+        // ── Восстановить последнее имя ──
+        window.addEventListener('DOMContentLoaded', () => {
+            const last = localStorage.getItem('last_child_name');
+            if (last) document.getElementById('child-name').value = last;
+        });
+
+        // ── ЭФИР: Лента событий ──
+        async function loadFeed() {
+            try {
+                const res = await fetch(`${API}/parent/feed?limit=15`);
+                const data = await res.json();
+                const feed = document.getElementById('feed');
+
+                if (!data.events || data.events.length === 0) {
+                    feed.innerHTML = '<div class="empty">Пока нет событий. Ребёнок ещё не играл.</div>';
+                    document.getElementById('connection-label').textContent = 'Ожидание...';
+                    return;
+                }
+
+                document.getElementById('connection-label').textContent = 'Связь активна';
+                document.getElementById('connection-sub').textContent =
+                    `Последнее событие: ${formatTime(data.events[0].ts)}`;
+
+                feed.innerHTML = data.events.map(ev => {
+                    let text = '';
+                    switch(ev.type) {
+                        case 'choice':
+                            text = `Выбор: <strong>${ev.choice_label || ev.choice_id}</strong>`;
+                            if (ev.speaker) text += ` (сцена с ${ev.speaker})`;
+                            break;
+                        case 'chat':
+                            text = `<strong>${ev.speaker}:</strong> "${truncate(ev.character_said, 80)}"`;
+                            break;
+                        case 'artifact':
+                            text = `Новый артефакт: <strong>${ev.artifact}</strong>`;
+                            break;
+                        case 'tutor_link':
+                            text = `Тьютор Линк: "${truncate(ev.context, 60)}"`;
+                            break;
+                        case 'session_start': text = 'Сессия началась'; break;
+                        case 'session_end':   text = 'Сессия сохранена'; break;
+                        default: text = JSON.stringify(ev);
+                    }
+                    return `<div class="event-card">
+                        <div class="event-top">
+                            <span class="event-time">${formatTime(ev.ts)}</span>
+                            <span class="event-type ${ev.type}">${typeLabel(ev.type)}</span>
+                        </div>
+                        <div class="event-text">${text}</div>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                document.getElementById('feed').innerHTML =
+                    '<div class="empty">Сервер недоступен. Запусти: cd server && uvicorn main:app --reload</div>';
+                document.getElementById('connection-label').textContent = 'Сервер офлайн';
+            }
+        }
+
+        // ── ПАМЯТЬ ──
+        async function loadMemory() {
+            try {
+                const res = await fetch(`${API}/parent/stats`);
+                const data = await res.json();
+                const list = document.getElementById('choices-list');
+                if (data.choices_history?.length > 0) {
+                    list.innerHTML = data.choices_history.map((c, i) =>
+                        `<div class="chronicle">
+                            <div>
+                                <div class="chronicle-label">Выбор ${i + 1}</div>
+                                <div class="chronicle-text">${c}</div>
+                            </div>
+                        </div>`
+                    ).join('');
+                } else {
+                    list.innerHTML = '<div class="empty">Ещё нет выборов.</div>';
+                }
+                const tags = document.getElementById('memory-tags');
+                tags.innerHTML = (data.memory_tags || []).map(t =>
+                    `<span class="memory-tag">${t}</span>`
+                ).join('');
+            } catch(e) {
+                document.getElementById('choices-list').innerHTML =
+                    '<div class="empty">Сервер недоступен.</div>';
+            }
+        }
+
+        // ── СТАТ ──
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API}/parent/stats`);
+                const data = await res.json();
+                document.getElementById('stats-grid').innerHTML = `
+                    <div class="stat-card"><div class="stat-label">Сессии</div><div class="stat-value">${data.total_sessions || 0}</div></div>
+                    <div class="stat-card"><div class="stat-label">Выборы</div><div class="stat-value">${data.total_choices || 0}</div></div>
+                    <div class="stat-card"><div class="stat-label">Диалоги</div><div class="stat-value">${data.total_chats || 0}</div></div>
+                    <div class="stat-card"><div class="stat-label">Артефакты</div><div class="stat-value">${data.artifacts?.length || 0}</div></div>
+                `;
+            } catch(e) {
+                document.getElementById('stats-grid').innerHTML =
+                    '<div class="empty" style="grid-column:1/-1">Сервер недоступен.</div>';
+            }
+        }
+
+        // ── Хелперы ──
+        function formatTime(ts) {
+            if (!ts) return '';
+            return new Date(ts).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
+        }
+        function truncate(s, n) {
+            if (!s) return '';
+            return s.length > n ? s.slice(0, n) + '...' : s;
+        }
+        function typeLabel(t) {
+            return {choice:'выбор', chat:'диалог', artifact:'артефакт',
+                    tutor_link:'тьютор', session_start:'старт', session_end:'конец'}[t] || t;
+        }
+
+        // Первичная загрузка
+        loadFeed();
+        setInterval(loadFeed, 5000);
+    </script>
+</body>
+</html>

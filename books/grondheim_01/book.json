@@ -7,12 +7,39 @@
   "version": "1.0.0",
   "created_by": "Six Fingers Studio",
   "chapters": [
-    { "id": "ch01", "title": "Пробуждение", "file": "chapters/ch01_awakening.json" }
+    {
+      "id": "ch_01",
+      "title": "Пробуждение",
+      "file": "chapters/ch_01_awakening.json"
+    }
   ],
   "characters": [
-    { "id": "eirik", "file": "characters/eirik.json" },
-    { "id": "loka",  "file": "characters/loka.json" }
+    {
+      "id": "eirik",
+      "name": "Эйрик",
+      "file": "characters/eirik.json"
+    },
+    {
+      "id": "loka",
+      "name": "Локи",
+      "file": "characters/loka.json"
+    }
   ],
   "starting_chapter": "ch_01",
-  "starting_scene": "scene_01"
+  "starting_scene": "cave_entrance",
+  "global_intents": {
+    "emergency_stop": {
+      "keywords": ["помогите", "спасите", "мама", "папа", "взрослый", "хватит", "стоп игра", "выключи"],
+      "action": "pause_game_until_adult",
+      "reply_text": "Я позову взрослого. Не волнуйся, всё хорошо. Просто подожди немного.",
+      "reply_audio": "audio/emergency_stop.mp3",
+      "notify_parent": true
+    },
+    "need_help": {
+      "keywords": ["не понимаю", "что делать", "помоги", "подскажи"],
+      "action": "give_hint",
+      "reply_text": "Конечно помогу! Просто скажи, что тебя интересует, и мы разберёмся вместе.",
+      "ui_pulse_color": "yellow"
+    }
+  }
 }

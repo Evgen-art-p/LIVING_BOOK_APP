@@ -129,6 +129,7 @@
 // ════════════════════════════════════════════════════════════════════
 //  КОНФИГ
 // ════════════════════════════════════════════════════════════════════
+const DEV_MODE   = true;          // ← true = локальная разработка, false = продакшн
 const BOOK_PATH  = '../books/grondheim_01/';
 const CHILD_NAME = 'Артём';
 const SESSION_ID = 'session_001';
@@ -333,28 +334,28 @@ const BookEngine = (() => {
     }
 
     async function _loadChapter(chId) {
-        if (cache[chId]) return cache[chId];
-        const meta = book.chapters.find(c => c.id === chId);
-        if (!meta) throw new Error(`Глава не найдена: ${chId}`);
-        
-        // ПРОВЕРКА: Если в пути вдруг дублируется chapters, мы это поправим
-        let filePath = meta.file;
-        const data = await loadJSON(BOOK_PATH + filePath);
-        
-        if (!data || !data.scenes) {
-            console.error(`[BookEngine] Файл ${filePath} пуст или не содержит сцен!`);
-            return null;
-        }
-
-        data._index = {};
-        for (const s of data.scenes) {
-            if (s.scene_id) data._index[s.scene_id] = s;
-        }
-        
-        cache[chId] = data;
-        console.log(`[BookEngine] Глава ${chId} загружена, сцен:`, data.scenes.length);
-        return data;
+    if (cache[chId]) return cache[chId]; // Если уже в памяти — не качаем заново
+    
+    const meta = book.chapters.find(c => c.id === chId);
+    if (!meta) throw new Error(`Глава не найдена в списке: ${chId}`); // Ошибка, если ID нет в book.json
+    
+    // ПУТЬ: BOOK_PATH (../books/grondheim_01/) + meta.file (chapters/ch01_awakening.json)
+    const data = await loadJSON(BOOK_PATH + meta.file); 
+    
+    if (!data || !data.scenes) {
+        throw new Error(`Файл главы ${chId} пуст или повреждён!`);
     }
+
+    // Индексируем сцены для быстрого поиска
+    data._index = {};
+    for (const s of data.scenes) {
+        if (s.scene_id) data._index[s.scene_id] = s;
+    }
+    
+    cache[chId] = data;
+    console.log(`[BookEngine] Глава ${chId} успешно загружена!`);
+    return data;
+}
 
     async function getScene(chId, sceneId) {
         const ch = await _loadChapter(chId);
@@ -685,7 +686,9 @@ function initSTT() {
     speechRec.onend    = () => { if (iskraState === 'listening') setState('idle'); };
 }
 function startListening() {
-    if (!speechRec || iskraState !== 'idle') return;
+    if (!speechRec || iskraState === 'listening') return;
+    // Ждём только idle или speaking (не прерываем thinking)
+    if (iskraState === 'thinking') return;
     try { speechRec.start(); setState('listening'); } catch(e) {}
 }
 
@@ -699,14 +702,11 @@ function initTTS() {
 }
 
 function speakText(text, audioFile) {
-    // Пробуем воспроизвести готовый аудиофайл из пакета
-    if (audioFile) {
-        const audio = new Audio(BOOK_PATH + audioFile);
-        audio.oncanplay = () => audio.play().catch(() => speakTTS(text));
-        audio.onerror   = () => speakTTS(text);
-        return;
+    // ВРЕМЕННО: полностью игнорируем аудиофайлы, используем только TTS
+    // Это уберёт все ошибки 404
+    if (text) {
+        speakTTS(text);
     }
-    speakTTS(text);
 }
 
 function speakTTS(text) {
@@ -717,27 +717,43 @@ function speakTTS(text) {
     speechSynthesis.speak(u);
 }
 
+// Флаг: автослушание активно (после первого касания — всегда слушаем)
+let autoListen = false;
+
 function speak(text, audioFile, colorName, onDone) {
-    if (!text) { onDone?.(); return; }
+    if (!text) { 
+        if (onDone) onDone();
+        return; 
+    }
+    
     if (colorName) setIskraColor(colorName);
     setState('speaking');
     showCaption(text);
-
-    const audio = audioFile ? new Audio(BOOK_PATH + audioFile) : null;
-
-    const finish = () => { hideCaption(); setState('idle'); onDone?.(); };
-
-    if (audio) {
-        audio.onended = finish;
-        audio.onerror = () => { speakTTS(text); finish(); };
-        audio.play().catch(() => { speakTTS(text); finish(); });
-    } else {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ru-RU'; u.rate = 0.88; u.pitch = 1.05;
-        if (synthVoice) u.voice = synthVoice;
-        u.onend = u.onerror = finish;
-        speechSynthesis.speak(u);
-    }
+    
+    // Игнорируем audioFile, всегда используем TTS
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ru-RU';
+    utterance.rate = 0.88;
+    utterance.pitch = 1.05;
+    if (synthVoice) utterance.voice = synthVoice;
+    
+    utterance.onend = () => {
+        hideCaption();
+        if (onDone) onDone();
+        if (autoListen) {
+            setTimeout(() => startListening(), 400);
+        } else {
+            setState('idle');
+        }
+    };
+    
+    utterance.onerror = () => {
+        hideCaption();
+        if (onDone) onDone();
+        setState('idle');
+    };
+    
+    speechSynthesis.speak(utterance);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -802,26 +818,71 @@ function showChoiceHint(scene) {
 // ════════════════════════════════════════════════════════════════════
 //  ГЛАВНАЯ ЛОГИКА — обработка речи ребёнка
 // ════════════════════════════════════════════════════════════════════
+
 async function onChildSpoke(text) {
-    if (!text) return;
+    console.log('🔴🔴🔴 onChildSpoke ВЫЗВАНА, текст:', text);
+    
+    if (!text) {
+        console.log('❌ текст пустой');
+        return;
+    }
+    
+    console.log('🔍 _dbReady =', window._dbReady);
+    
+    if (!window._dbReady) {
+        console.warn('База ещё не готова, пропускаю фразу:', text);
+        return;
+    }
+    
+    console.log('🗣️ ПОЛУЧЕНА ФРАЗА:', text);
+    console.log('📌 currentScene существует?', !!currentScene);
+    console.log('📌 currentScene:', currentScene);
+    
+    if (currentScene) {
+        console.log('📌 scene_id:', currentScene.scene_id);
+        console.log('📌 mode:', currentScene.mode);
+    }
+    
     setState('thinking');
-    await Memory.saveUtterance(SESSION_ID, text);
-    await Dialog.autoTag(text);
-
-    // 1. ПРИОРИТЕТ 1 — Стоп-кран (жизнь/безопасность)
+    console.log('🟡 состояние changed -> thinking');
+    
+    try {
+        console.log('💾 сохраняю utterance...');
+        await Memory.saveUtterance(SESSION_ID, text);
+        console.log('✅ utterance сохранён');
+        
+        console.log('🏷️ autoTag...');
+        await Dialog.autoTag(text);
+        console.log('✅ autoTag готов');
+    } catch (err) {
+        console.error('❌ Ошибка при сохранении:', err);
+    }
+    
+    console.log('🛡️ проверяю GlobalIntents...');
     const handled = await GlobalIntents.handle(text);
+    console.log('🛡️ GlobalIntents результат:', handled);
     if (handled) return;
-
-    // 2. ПРИОРИТЕТ 2 — Мягкий стоп-кран (дух Вредности)
+    
+    console.log('😈 проверяю SoftBoundary...');
     const softHandled = await SoftBoundary.handle(text, currentScene);
+    console.log('😈 SoftBoundary результат:', softHandled);
     if (softHandled) return;
-
-    // 3. Локальные intent'ы сцены
+    
+    console.log('🎯 перехожу к локальным интентам...');
+    
     const scene = currentScene;
-    if (!scene) { speak(`Расскажи мне, ${CHILD_NAME}.`); return; }
-
+    if (!scene) { 
+        console.log('❌ scene нет, говорю дефолт');
+        speak(`Расскажи мне, ${CHILD_NAME}.`); 
+        return;
+    }
+    
+    console.log('🎯 scene.mode =', scene.mode);
+    
     if (scene.mode === 'ask_choice') {
+        console.log('🔘 режим ask_choice, ищу match...');
         const choice = matchChoice(text, scene.choices || []);
+        console.log('🔘 найденный choice:', choice);
         if (choice) {
             await Memory.saveChoice(SESSION_ID, choice.id);
             await Memory.addTag(SESSION_ID, choice.memory_vector || choice.id);
@@ -832,26 +893,26 @@ async function onChildSpoke(text) {
             }
             return;
         }
-        // Не поняли — повторить варианты
         const fallback = scene.scripted_responses?.fallback;
         if (fallback) speak(fallback.reply_text, fallback.reply_audio); 
         else speak(`Скажи: ${(scene.choices||[]).map(c=>c.label).join(' или ')}?`);
         return;
     }
-
-    // free_talk
+    
+    console.log('💬 free_talk режим, вызываю Dialog.getReply...');
     const reply = await Dialog.getReply(text, scene);
-
-    // Сохраняем вектор памяти (включая биографическую)
+    console.log('💬 reply получен:', reply);
+    
     await Dialog.saveVector(reply.vector, reply.memoryKey, reply.matchedKeyword);
-
-    // Разрешаем цвет (может быть {memory:user_fav_color})
+    
     const colorName = await MemoryTemplate.resolve(reply.color);
     setIskraColor(colorName);
-
+    
     const turns = await Memory.incrementTurn(SESSION_ID);
-
+    console.log(`📊 turn_count = ${turns}, max_turns = ${scene.max_turns}`);
+    
     if (scene.max_turns && turns >= scene.max_turns && scene.on_end) {
+        console.log('🔄 максимальное число ходов, перехожу на', scene.on_end);
         speak(reply.text, reply.audio, null, async () => {
             const found = await BookEngine.findScene(scene.on_end);
             if (found) {
@@ -860,6 +921,7 @@ async function onChildSpoke(text) {
             }
         });
     } else {
+        console.log('💬 говорю reply.text:', reply.text);
         speak(reply.text, reply.audio);
     }
 }
@@ -897,6 +959,10 @@ const NightBeacon = (() => {
                 ...(e.key       && { bio_key: e.key }),
             })),
         };
+        if (DEV_MODE) {
+            console.log('[NightBeacon] DEV_MODE активен — батч не отправлен:', batch);
+            return;
+        }
         try {
             const res = await fetch(URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(batch), signal:AbortSignal.timeout(10000) });
             if (res.ok) { await Memory.clearSyncQueue(); localStorage.setItem(KEY, Date.now().toString()); }
@@ -913,10 +979,22 @@ const NightBeacon = (() => {
 // ════════════════════════════════════════════════════════════════════
 //  ЗАПУСК
 // ════════════════════════════════════════════════════════════════════
+
+// ЗАМЕНИ ВЕСЬ БЛОК async function start() { ... } НА ЭТОТ:
 async function start() {
     document.getElementById('start-screen').style.display = 'none';
     setState('thinking');
 
+    // 1. СНАЧАЛА открываем базу данных — это самое важное
+    await Memory.open();
+    window._dbReady = true;  // ← ДОБАВИТЬ ЭТУ СТРОКУ
+    console.log('✅ База данных готова к работе');  // ← И ЭТУ (для проверки)
+
+
+    window._dbReady = true;  // Сигнал, что база открыта
+    console.log('✅ База данных готова к работе');
+
+    // 2. ТОЛЬКО ПОТОМ включаем микрофон
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
@@ -926,8 +1004,9 @@ async function start() {
         micData = new Uint8Array(analyser.frequencyBinCount);
     } catch(e) { console.error('[Mic]', e); }
 
-    initSTT(); initTTS();
-    await Memory.open();
+    // 3. Инициализируем распознавание речи ПОСЛЕ базы данных
+    initSTT(); 
+    initTTS();
 
     try {
         await BookEngine.init();
@@ -941,7 +1020,11 @@ async function start() {
     setTimeout(() => NightBeacon.trySync(), 5000);
 }
 
-document.getElementById('start-btn').addEventListener('click', start);
+document.getElementById('start-btn').addEventListener('click', () => {
+    autoListen = true; // одно касание — дальше только голос
+    start();
+});
+// Касание по canvas — запасной вариант если голос не подхватился
 canvas.addEventListener('click',      () => { if (iskraState === 'idle') startListening(); });
 canvas.addEventListener('touchstart', e => { e.preventDefault(); if (iskraState === 'idle') startListening(); }, { passive: false });
 

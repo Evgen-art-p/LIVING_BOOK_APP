@@ -3,365 +3,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alive Book — Кабинет родителя</title>
+    <title>Грондхейм | Кабинет Родителя</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0c; color: #e0e0e0; min-height: 100vh; }
+        body { font-family: 'Nunito', sans-serif; }
+        .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
+        .orb-ring {
+            animation: orb-pulse 3s ease-in-out infinite;
+        }
+        .orb-core {
+            animation: core-glow 2s ease-in-out infinite;
+        }
+        @keyframes orb-pulse {
+            0%,100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.06); opacity: 1; }
+        }
+        @keyframes core-glow {
+            0%,100% { box-shadow: 0 0 16px rgba(99,102,241,0.5); }
+            50% { box-shadow: 0 0 32px rgba(99,102,241,0.9); }
+        }
+        @keyframes bounce-live {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .live-badge { animation: bounce-live 1.5s infinite; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .event-card { transition: background 0.15s; }
+        .event-card:hover { background: rgba(99,102,241,0.04); }
 
-        header { position: sticky; top: 0; z-index: 50; background: rgba(10,10,12,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid #222; padding: 16px 24px; text-align: center; }
-        .logo { font-size: 10px; letter-spacing: 0.3em; color: #7F77DD; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
-        .header-title { font-size: 1.1rem; font-weight: 300; color: white; font-style: italic; }
-        .header-title span { color: #22d3ee; font-style: normal; }
-
-        main { max-width: 480px; margin: 0 auto; padding: 0 20px 120px; }
-
-        /* Навигация */
-        nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0c; border-top: 1px solid #222; padding: 12px 24px; display: flex; justify-content: space-around; z-index: 50; }
-        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; color: #555; cursor: pointer; transition: all 0.2s; font-size: 9px; font-weight: 700; letter-spacing: 0.02em; }
-        .nav-btn.active { color: #22d3ee; transform: scale(1.08); }
-        .nav-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: #22d3ee; display: none; }
-        .nav-btn.active .dot { display: block; box-shadow: 0 0 8px rgba(34,211,238,1); }
-        .nav-icon { font-size: 18px; }
-
-        /* Табы */
-        .tab { display: none; padding-top: 20px; }
-        .tab.active { display: block; }
-
-        /* Орб */
-        .orb-wrap { display: flex; flex-direction: column; align-items: center; padding: 28px 0 16px; }
-        .orb { width: 80px; height: 80px; border-radius: 50%; background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.25); display: flex; align-items: center; justify-content: center; position: relative; animation: orb-pulse 3s ease-in-out infinite; }
-        .orb-core { width: 28px; height: 28px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.5); }
-        .orb-live { position: absolute; top: -4px; right: -4px; background: #ef4444; font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 700; animation: bounce 1.5s infinite; }
-        @keyframes orb-pulse { 0%,100%{transform:scale(1);opacity:.8} 50%{transform:scale(1.05);opacity:1} }
-        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-        .orb-label { color: #22d3ee; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 14px; }
-        .orb-sub { color: #555; font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 4px; }
-
-        /* Лента событий */
-        .feed-header { color: #888; font-size: 13px; font-weight: 500; margin-bottom: 12px; }
-        .event-card { background: #12121a; border-left: 2px solid #7F77DD; padding: 12px 14px; border-radius: 0 10px 10px 0; margin-bottom: 10px; transition: background 0.2s; }
-        .event-card:hover { background: #18182a; }
-        .event-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .event-time { font-size: 10px; color: #555; font-family: monospace; }
-        .event-type { font-size: 9px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; }
-        .event-type.choice { background: rgba(34,211,238,0.15); color: #22d3ee; }
-        .event-type.chat { background: rgba(127,119,221,0.15); color: #AFA9EC; }
-        .event-type.artifact { background: rgba(239,159,39,0.15); color: #EF9F27; }
-        .event-type.tutor_link { background: rgba(93,202,165,0.15); color: #5DCAA5; }
-        .event-type.session_start { background: rgba(151,196,89,0.12); color: #97C459; }
-        .event-type.session_end { background: rgba(136,135,128,0.12); color: #888780; }
-        .event-text { font-size: 13px; color: #ccc; line-height: 1.5; }
-
-        /* Тьютор Линк */
-        .tutor-box { background: linear-gradient(to bottom, #12121a, #0e0e14); padding: 20px; border-radius: 16px; border: 1px dashed rgba(6,182,212,0.3); margin-top: 20px; }
-        .tutor-label { color: #22d3ee; font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; }
-        .tutor-textarea { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid #333; color: white; padding: 10px; border-radius: 10px; font-size: 13px; resize: none; min-height: 70px; font-family: inherit; }
-        .tutor-textarea:focus { outline: none; border-color: #22d3ee; }
-        .tutor-btn { width: 100%; margin-top: 12px; background: transparent; border: 1px solid #22d3ee; color: #22d3ee; padding: 11px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.12em; transition: all 0.2s; }
-        .tutor-btn:hover { background: #22d3ee; color: black; }
-        .tutor-current { margin-top: 12px; font-size: 11px; color: #5DCAA5; font-style: italic; }
-
-        /* Статистика */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: #12121a; padding: 16px; border-radius: 12px; text-align: center; border: 1px solid #1a1a22; }
-        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
-        .stat-value { font-size: 22px; font-weight: 600; color: white; margin-top: 4px; }
-
-        /* Хроники */
-        .chronicle { background: #12121a; padding: 14px; border-radius: 12px; border: 1px solid #1a1a22; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .chronicle-label { font-size: 11px; color: #7F77DD; }
-        .chronicle-text { font-size: 13px; color: white; margin-top: 2px; }
-
-        /* Тэги памяти */
-        .memory-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-        .memory-tag { font-size: 11px; padding: 4px 10px; border-radius: 20px; background: rgba(127,119,221,0.12); color: #AFA9EC; }
-
-        /* Пустое состояние */
-        .empty { text-align: center; padding: 40px 0; color: #444; font-size: 14px; font-style: italic; }
-
-        /* Тост */
-        .toast { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); background: #22d3ee; color: black; padding: 8px 20px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; z-index: 100; display: none; box-shadow: 0 0 20px rgba(34,211,238,0.4); }
+        /* Toast */
+        .toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: #6366f1; color: white; padding: 8px 20px; border-radius: 20px;
+            font-size: 12px; font-weight: 700; letter-spacing: 0.05em;
+            z-index: 100; display: none;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+        }
         .toast.show { display: block; animation: toast-in 0.3s ease; }
-        @keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Scrollbar subtle */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
     </style>
 </head>
-<body>
-    <header>
-        <div class="logo">Studio Six Fingers</div>
-        <div class="header-title">Alive Book: <span>Кабинет родителя</span></div>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+
+<div class="max-w-6xl mx-auto p-4 md:p-8">
+
+    <!-- HEADER -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div>
+            <p class="text-[10px] font-bold tracking-[0.25em] text-indigo-400 uppercase mb-1">Шесть Пальцев Студия</p>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Кабинет Родителя</h1>
+            <p class="text-sm text-slate-400 italic">Фабрика Живых Книжек • Цех №1</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <!-- Орб-статус -->
+            <div id="orb-wrap" class="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
+                <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center relative">
+                    <div class="orb-core w-4 h-4 rounded-full bg-indigo-500"></div>
+                    <div class="live-badge absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">LIVE</div>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-slate-700 leading-none" id="connection-label">Загрузка...</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="connection-sub"></div>
+                </div>
+            </div>
+            <!-- Хронос -->
+            <div class="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-100">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Хронос Активен</span>
+            </div>
+        </div>
     </header>
 
-    <main>
-        <!-- ЭФИР -->
-        <div class="tab active" id="tab-live">
-            <div class="orb-wrap">
-                <div class="orb">
-                    <div class="orb-core"></div>
-                    <div class="orb-live">LIVE</div>
-                </div>
-                <div class="orb-label" id="connection-label">Загрузка...</div>
-                <div class="orb-sub" id="connection-sub"></div>
+    <!-- TABS NAV -->
+    <div class="flex gap-2 mb-6 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm w-fit">
+        <button onclick="switchTab('live')" id="btn-live"
+            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">
+            📡 Эфир
+        </button>
+        <button onclick="switchTab('memory')" id="btn-memory"
+            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500 hover:text-slate-800 hover:bg-slate-50">
+            📜 Память
+        </button>
+        <button onclick="switchTab('stats')" id="btn-stats"
+            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500 hover:text-slate-800 hover:bg-slate-50">
+            📊 Статистика
+        </button>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- LEFT / MAIN CONTENT -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- ══ ТАБ: ЭФИР ══ -->
+            <div class="tab-content active" id="tab-live">
+
+                <!-- Семантическое Зеркало -->
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
+                        <span class="text-indigo-400 text-lg">◈</span> Семантическое Зеркало
+                    </h2>
+                    <div class="flex flex-wrap gap-2 mb-6" id="semantic-tags">
+                        <span class="text-sm text-slate-400 italic">Нет данных — начните сессию в Грондхейме</span>
+                    </div>
+                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900 text-sm leading-relaxed" id="bridge-tip" style="display:none">
+                        <span class="font-bold mr-2">💡 Мостик в Реал:</span>
+                        <span id="bridge-text"></span>
+                    </div>
+                </section>
+
+                <!-- Лента событий -->
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
+                        <span class="text-rose-400 text-lg">◉</span> События Души
+                    </h2>
+                    <div id="feed">
+                        <div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div>
+                    </div>
+                </section>
+
+                <!-- Тьютор Линк / Корзинка Даров -->
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-base font-bold flex items-center gap-2 text-slate-800">
+                            <span>🧺</span> Тьютор Линк
+                        </h2>
+                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Контекст дня</span>
+                    </div>
+                    <textarea id="tutor-input"
+                        class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 p-4 rounded-2xl text-sm resize-none min-h-[80px] font-[Nunito] transition-colors"
+                        placeholder="Расскажите о важном событии дня, планах на завтра..."></textarea>
+                    <p class="text-xs text-indigo-600 font-semibold italic mt-2" id="tutor-current"></p>
+                    <button onclick="sendTutor()"
+                        class="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98] text-sm tracking-wide">
+                        Внедрить в мир книги ✦
+                    </button>
+                </section>
             </div>
-            <div class="feed-header">События души</div>
-            <div id="feed"></div>
-            <div class="tutor-box">
-                <div class="tutor-label">Тьютор Линк (контекст дня)</div>
-                <textarea class="tutor-textarea" id="tutor-input" placeholder="Расскажите о важном событии дня, планах на завтра..."></textarea>
-                <button class="tutor-btn" onclick="sendTutor()">Внедрить в мир книги</button>
-                <div class="tutor-current" id="tutor-current"></div>
+
+            <!-- ══ ТАБ: ПАМЯТЬ ══ -->
+            <div class="tab-content" id="tab-memory">
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h2 class="text-xl font-bold text-slate-900 mb-1">Хроники Грондхейма</h2>
+                    <p class="text-sm text-slate-400 mb-6">Все выборы и путешествия ребёнка.</p>
+                    <div id="choices-list">
+                        <div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-6" id="memory-tags"></div>
+                </section>
             </div>
-        </div>
 
-        <!-- ПАМЯТЬ -->
-        <div class="tab" id="tab-memory">
-            <h2 style="font-size:18px;font-weight:300;color:white;margin-bottom:6px;padding-top:16px;">Хроники Грондхейма</h2>
-            <p style="font-size:13px;color:#666;margin-bottom:16px;">Все выборы и путешествия ребёнка.</p>
-            <div id="choices-list"></div>
-            <div class="memory-tags" id="memory-tags"></div>
-        </div>
+            <!-- ══ ТАБ: СТАТИСТИКА ══ -->
+            <div class="tab-content" id="tab-stats">
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h2 class="text-xl font-bold text-slate-900 mb-6">Статистика</h2>
+                    <div class="grid grid-cols-2 gap-4 mb-6" id="stats-grid">
+                        <div class="text-center py-10 text-slate-400 text-sm italic col-span-2">Загрузка...</div>
+                    </div>
+                    <div id="artifacts-section"></div>
+                </section>
+            </div>
 
-        <!-- ГЕРОИ -->
-        <div class="tab" id="tab-stats">
-            <h2 style="font-size:18px;font-weight:300;color:white;margin-bottom:16px;padding-top:16px;">Статистика</h2>
-            <div class="stats-grid" id="stats-grid"></div>
-            <div id="artifacts-section"></div>
-        </div>
-    </main>
+        </div><!-- /left -->
 
-    <div class="toast" id="toast"></div>
+        <!-- RIGHT SIDEBAR -->
+        <div class="space-y-5">
 
-    <nav>
-        <button class="nav-btn active" onclick="switchTab('live')">
-            <span class="nav-icon">📡</span>ЭФИР<span class="dot"></span>
-        </button>
-        <button class="nav-btn" onclick="switchTab('memory')">
-            <span class="nav-icon">📜</span>ПАМЯТЬ<span class="dot"></span>
-        </button>
-        <button class="nav-btn" onclick="switchTab('stats')">
-            <span class="nav-icon">📊</span>СТАТ<span class="dot"></span>
-        </button>
-    </nav>
-
-    <script>
-        const API = 'http://localhost:8000';
-        let pollTimer = null;
-
-        // ── Навигация ──
-        function switchTab(name) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-' + name).classList.add('active');
-            event.currentTarget.classList.add('active');
-
-            if (name === 'live') loadFeed();
-            if (name === 'memory') loadMemory();
-            if (name === 'stats') loadStats();
-        }
-
-        // ── Тост ──
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        // ── ЭФИР: Лента событий ──
-        async function loadFeed() {
-            try {
-                const res = await fetch(`${API}/parent/feed?limit=15`);
-                const data = await res.json();
-                const feed = document.getElementById('feed');
-
-                if (!data.events || data.events.length === 0) {
-                    feed.innerHTML = '<div class="empty">Пока нет событий. Ребёнок ещё не играл.</div>';
-                    document.getElementById('connection-label').textContent = 'Ожидание...';
-                    return;
-                }
-
-                document.getElementById('connection-label').textContent = 'Связь активна';
-                document.getElementById('connection-sub').textContent =
-                    `Последнее событие: ${formatTime(data.events[0].ts)}`;
-
-                feed.innerHTML = data.events.map(ev => {
-                    let text = '';
-                    let typeClass = ev.type;
-
-                    switch(ev.type) {
-                        case 'choice':
-                            text = `Выбор: <strong>${ev.choice_label || ev.choice_id}</strong>`;
-                            if (ev.speaker) text += ` (сцена с ${ev.speaker})`;
-                            break;
-                        case 'chat':
-                            text = `<strong>${ev.speaker}:</strong> "${truncate(ev.character_said, 80)}"`;
-                            break;
-                        case 'artifact':
-                            text = `Новый артефакт: <strong>${ev.artifact}</strong>`;
-                            break;
-                        case 'tutor_link':
-                            text = `Тьютор Линк: "${truncate(ev.context, 60)}"`;
-                            break;
-                        case 'session_start':
-                            text = 'Сессия началась';
-                            break;
-                        case 'session_end':
-                            text = 'Сессия сохранена';
-                            break;
-                        default:
-                            text = JSON.stringify(ev);
-                    }
-
-                    return `<div class="event-card">
-                        <div class="event-top">
-                            <span class="event-time">${formatTime(ev.ts)}</span>
-                            <span class="event-type ${typeClass}">${typeLabel(ev.type)}</span>
+            <!-- Границы Мира -->
+            <section class="bg-slate-900 text-white p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-base font-bold mb-6 text-white">Границы Мира</h2>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-slate-400">Сон персонажа</span>
+                            <span class="text-indigo-400 font-bold tracking-wider">21:00 — 08:00</span>
                         </div>
-                        <div class="event-text">${text}</div>
+                        <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <p class="text-[10px] text-slate-500 leading-relaxed uppercase tracking-wider">
+                            В это время Искорка уходит в Гавань и не реагирует на внешние стимулы.
+                        </p>
+                    </div>
+                </div>
+                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500 opacity-10 rounded-full blur-3xl"></div>
+            </section>
+
+            <!-- Связь с Локой -->
+            <button class="w-full p-6 bg-pink-50 text-pink-600 rounded-[2rem] border border-pink-100 border-b-4 border-b-pink-200 flex items-center justify-between hover:bg-pink-100 transition-all group active:border-b-0 active:translate-y-0.5">
+                <div class="flex items-center gap-4 text-left">
+                    <span class="text-3xl animate-bounce">☁️</span>
+                    <div>
+                        <p class="font-bold text-pink-700 leading-none">Связь с Локой</p>
+                        <p class="text-[10px] text-pink-500 uppercase mt-1 tracking-widest font-bold">Поддержка Студии</p>
+                    </div>
+                </div>
+                <span class="text-xl group-hover:translate-x-2 transition-transform">→</span>
+            </button>
+
+            <!-- Dev Reset -->
+            <button onclick="resetProgress()"
+                class="w-full p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-all">
+                ⚠ Сброс прогресса (DEV)
+            </button>
+
+            <!-- Footer -->
+            <div class="p-4 text-center">
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest leading-loose">
+                    Шесть Пальцев Студия<br>© 2026 Грондхейм Протокол
+                </p>
+            </div>
+        </div><!-- /sidebar -->
+
+    </div><!-- /grid -->
+</div><!-- /container -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const API = 'http://localhost:8001';
+    let pollTimer = null;
+
+    // ── Навигация ──
+    function switchTab(name) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.className = b.className
+                .replace('bg-indigo-600 text-white shadow-md shadow-indigo-100', '')
+                .trim();
+            b.classList.add('text-slate-500');
+            b.classList.remove('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
+        });
+
+        document.getElementById('tab-' + name).classList.add('active');
+        const btn = document.getElementById('btn-' + name);
+        btn.classList.remove('text-slate-500');
+        btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-100');
+
+        if (name === 'live')   loadFeed();
+        if (name === 'memory') loadMemory();
+        if (name === 'stats')  loadStats();
+    }
+
+    // ── Тост ──
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ── EVENT TYPE helpers ──
+    const TYPE_CONFIG = {
+        choice:        { label: 'Выбор',    cls: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+        chat:          { label: 'Диалог',   cls: 'bg-violet-50 text-violet-600 border-violet-100' },
+        artifact:      { label: 'Артефакт', cls: 'bg-amber-50 text-amber-600 border-amber-100' },
+        tutor_link:    { label: 'Тьютор',   cls: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+        session_start: { label: 'Старт',    cls: 'bg-lime-50 text-lime-600 border-lime-100' },
+        session_end:   { label: 'Конец',    cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+    };
+    function typeChip(type) {
+        const cfg = TYPE_CONFIG[type] || { label: type, cls: 'bg-slate-100 text-slate-500 border-slate-200' };
+        return `<span class="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg border ${cfg.cls}">${cfg.label}</span>`;
+    }
+
+    // ── ЭФИР: Лента событий ──
+    async function loadFeed() {
+        try {
+            const res  = await fetch(`${API}/parent/feed?limit=15`);
+            const data = await res.json();
+            const feed = document.getElementById('feed');
+
+            if (!data.events || data.events.length === 0) {
+                feed.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Пока нет событий. Ребёнок ещё не играл.</div>';
+                document.getElementById('connection-label').textContent = 'Ожидание...';
+                document.getElementById('connection-sub').textContent = '';
+                return;
+            }
+
+            document.getElementById('connection-label').textContent = 'Связь активна';
+            document.getElementById('connection-sub').textContent = `Последнее: ${formatTime(data.events[0].ts)}`;
+
+            feed.innerHTML = data.events.map(ev => {
+                let text = '';
+                switch (ev.type) {
+                    case 'choice':
+                        text = `Выбрал: <strong>${ev.choice_label || ev.choice_id}</strong>`;
+                        if (ev.speaker) text += ` <span class="text-slate-400">(сцена с ${ev.speaker})</span>`;
+                        break;
+                    case 'chat':
+                        text = `<strong>${ev.speaker}:</strong> «${truncate(ev.character_said, 80)}»`;
+                        break;
+                    case 'artifact':
+                        text = `Новый артефакт: <strong>${ev.artifact}</strong>`;
+                        break;
+                    case 'tutor_link':
+                        text = `Тьютор Линк: «${truncate(ev.context, 60)}»`;
+                        break;
+                    case 'session_start': text = 'Сессия началась'; break;
+                    case 'session_end':   text = 'Сессия сохранена'; break;
+                    default: text = JSON.stringify(ev);
+                }
+                return `
+                    <div class="event-card flex items-start gap-3 p-4 rounded-2xl border border-slate-50 mb-2">
+                        <div class="pt-0.5 shrink-0">${typeChip(ev.type)}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm text-slate-700 leading-relaxed">${text}</div>
+                        </div>
+                        <div class="text-[10px] text-slate-300 font-mono shrink-0 pt-1">${formatTime(ev.ts)}</div>
                     </div>`;
-                }).join('');
+            }).join('');
 
-                // Загружаем текущий контекст тьютора
-                loadTutorContext();
+            // Обновляем Семантическое Зеркало из тегов событий
+            updateSemanticMirror(data.events);
+            loadTutorContext();
 
-            } catch (e) {
-                document.getElementById('feed').innerHTML =
-                    '<div class="empty">Сервер недоступен. Запусти: cd server && uvicorn main:app --reload</div>';
+        } catch (e) {
+            document.getElementById('feed').innerHTML =
+                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.<br><code class="text-xs">cd server && uvicorn main:app --reload</code></div>';
+            document.getElementById('connection-label').textContent = 'Нет связи';
+        }
+    }
+
+    // Семантические теги — собираем из событий или показываем заглушку
+    function updateSemanticMirror(events) {
+        const tagEl = document.getElementById('semantic-tags');
+        // Пробуем собрать теги из memory_tags если они есть в событиях
+        const tagSet = new Set();
+        events.forEach(ev => {
+            if (ev.tags && Array.isArray(ev.tags)) ev.tags.forEach(t => tagSet.add(t));
+        });
+        if (tagSet.size > 0) {
+            tagEl.innerHTML = [...tagSet].map(t =>
+                `<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-semibold border border-indigo-100 italic">${t}</span>`
+            ).join('');
+        }
+        // Если нет тегов — оставляем как есть (надпись «нет данных»)
+    }
+
+    // ── Тьютор Линк ──
+    async function sendTutor() {
+        const input = document.getElementById('tutor-input');
+        const tutorMessage = input.value;
+
+        if (!tutorMessage.trim()) {
+            showToast("Ошибка: Заполните контекст задачи!");
+            return;
+        }
+
+        showToast("Данные переданы Нейро Спарку. Сюжет адаптируется...");
+
+        try {
+            // Тот самый исправленный адрес Главного Маяка!
+            const response = await fetch(API + '/api/studio/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    child_name: "Женя", 
+                    child_age: "7",     
+                    task_context: tutorMessage
+                })
+            });
+
+            if (!response.ok) throw new Error('Ошибка сервера Студии');
+            
+            const data = await response.json();
+            showToast("Успех! Сюжет загружен в Грондхейм.");
+            input.value = ''; // Очищаем поле после успешной отправки
+
+        } catch (error) {
+            console.error("Ошибка Моста Доверия:", error);
+            showToast("Ошибка отправки! Проверьте, включен ли Маяк.");
+        }
+    }
+
+    // ── ПАМЯТЬ: Хроники ──
+    async function loadMemory() {
+        try {
+            const res  = await fetch(`${API}/parent/stats`);
+            const data = await res.json();
+
+            // Выборы
+            const list = document.getElementById('choices-list');
+            if (data.choices_history && data.choices_history.length > 0) {
+                list.innerHTML = data.choices_history.map((c, i) => `
+                    <div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-slate-50 mb-3">
+                        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 rounded-xl shrink-0">Выбор ${i+1}</span>
+                        <p class="text-sm text-slate-700 leading-relaxed">${c}</p>
+                    </div>`).join('');
+            } else {
+                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Ещё нет выборов.</div>';
             }
-        }
 
-        // ── Тьютор Линк ──
-        async function sendTutor() {
-            const input = document.getElementById('tutor-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            try {
-                await fetch(`${API}/parent/tutor`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({context: text})
-                });
-                input.value = '';
-                showToast('Контекст внедрён в мир книги');
-                loadFeed();
-            } catch (e) {
-                showToast('Ошибка отправки');
+            // Теги памяти
+            const tagsEl = document.getElementById('memory-tags');
+            if (data.memory_tags && data.memory_tags.length > 0) {
+                tagsEl.innerHTML = data.memory_tags.map(t =>
+                    `<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100 italic">${t}</span>`
+                ).join('');
             }
+        } catch (e) {
+            document.getElementById('choices-list').innerHTML =
+                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.</div>';
         }
+    }
 
-        async function loadTutorContext() {
-            try {
-                const res = await fetch(`${API}/parent/tutor`);
-                const data = await res.json();
-                const el = document.getElementById('tutor-current');
-                if (data.context) {
-                    el.textContent = `Текущий контекст: "${data.context}"`;
-                } else {
-                    el.textContent = '';
-                }
-            } catch (e) {}
-        }
+    // ── СТАТИСТИКА ──
+    async function loadStats() {
+        try {
+            const res  = await fetch(`${API}/parent/stats`);
+            const data = await res.json();
 
-        // ── ПАМЯТЬ: Хроники ──
-        async function loadMemory() {
-            try {
-                const res = await fetch(`${API}/parent/stats`);
-                const data = await res.json();
+            const STAT_CARDS = [
+                { label: 'Сессии',   value: data.total_sessions || 0, icon: '🕯', color: 'indigo' },
+                { label: 'Выборы',   value: data.total_choices  || 0, icon: '🔀', color: 'violet' },
+                { label: 'Диалоги',  value: data.total_chats    || 0, icon: '💬', color: 'emerald' },
+                { label: 'Артефакты',value: (data.artifacts || []).length, icon: '⚡', color: 'amber' },
+            ];
 
-                // Выборы
-                const list = document.getElementById('choices-list');
-                if (data.choices_history && data.choices_history.length > 0) {
-                    list.innerHTML = data.choices_history.map((c, i) =>
-                        `<div class="chronicle">
-                            <div>
-                                <div class="chronicle-label">Выбор ${i + 1}</div>
-                                <div class="chronicle-text">${c}</div>
-                            </div>
-                        </div>`
-                    ).join('');
-                } else {
-                    list.innerHTML = '<div class="empty">Ещё нет выборов.</div>';
-                }
+            document.getElementById('stats-grid').innerHTML = STAT_CARDS.map(s => `
+                <div class="p-6 rounded-2xl border border-slate-100 bg-slate-50 text-center">
+                    <div class="text-3xl mb-2">${s.icon}</div>
+                    <div class="text-3xl font-bold text-slate-800">${s.value}</div>
+                    <div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.label}</div>
+                </div>`).join('');
 
-                // Тэги памяти
-                const tags = document.getElementById('memory-tags');
-                if (data.memory_tags && data.memory_tags.length > 0) {
-                    tags.innerHTML = data.memory_tags.map(t =>
-                        `<span class="memory-tag">${t}</span>`
-                    ).join('');
-                } else {
-                    tags.innerHTML = '';
-                }
-
-            } catch (e) {
-                document.getElementById('choices-list').innerHTML =
-                    '<div class="empty">Сервер недоступен.</div>';
+            const artsEl = document.getElementById('artifacts-section');
+            if (data.artifacts && data.artifacts.length > 0) {
+                artsEl.innerHTML = `
+                    <div class="mt-6">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Собранные артефакты</h3>
+                        ${data.artifacts.map(a =>
+                            `<div class="flex items-center gap-3 p-4 rounded-2xl border border-amber-100 bg-amber-50 mb-2">
+                                <span class="text-xl">⚡</span>
+                                <span class="text-sm font-semibold text-amber-800">${a}</span>
+                            </div>`
+                        ).join('')}
+                    </div>`;
+            } else {
+                artsEl.innerHTML = '';
             }
+        } catch (e) {
+            document.getElementById('stats-grid').innerHTML =
+                '<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.</div>';
         }
+    }
 
-        // ── СТАТ ──
-        async function loadStats() {
-            try {
-                const res = await fetch(`${API}/parent/stats`);
-                const data = await res.json();
-
-                document.getElementById('stats-grid').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-label">Сессии</div>
-                        <div class="stat-value">${data.total_sessions || 0}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Выборы</div>
-                        <div class="stat-value">${data.total_choices || 0}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Диалоги</div>
-                        <div class="stat-value">${data.total_chats || 0}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Артефакты</div>
-                        <div class="stat-value">${data.artifacts ? data.artifacts.length : 0}</div>
-                    </div>
-                `;
-
-                const artifacts = document.getElementById('artifacts-section');
-                if (data.artifacts && data.artifacts.length > 0) {
-                    artifacts.innerHTML = '<div style="margin-top:12px;font-size:13px;color:#888">Собранные артефакты:</div>' +
-                        data.artifacts.map(a =>
-                            `<div style="margin-top:6px;font-size:14px;color:#EF9F27">⚡ ${a}</div>`
-                        ).join('');
-                } else {
-                    artifacts.innerHTML = '';
-                }
-
-            } catch (e) {
-                document.getElementById('stats-grid').innerHTML =
-                    '<div class="empty" style="grid-column:1/-1">Сервер недоступен.</div>';
-            }
-        }
-
-        // ── Хелперы ──
-        function formatTime(ts) {
-            if (!ts) return '';
-            const d = new Date(ts);
-            return d.toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
-        }
-        function truncate(s, n) {
-            if (!s) return '';
-            return s.length > n ? s.slice(0, n) + '...' : s;
-        }
-        function typeLabel(t) {
-            const map = {choice:'выбор', chat:'диалог', artifact:'артефакт', tutor_link:'тьютор', session_start:'старт', session_end:'конец'};
-            return map[t] || t;
-        }
-
-        // ── Автообновление ленты каждые 5 сек ──
-        function startPolling() {
+    // ── Dev: Сброс прогресса ──
+    async function resetProgress() {
+        if (!confirm('Сбросить весь прогресс? (только DEV)')) return;
+        // Очистка IndexedDB iskra_fort
+        const req = indexedDB.deleteDatabase('iskra_fort');
+        req.onsuccess = () => {
+            showToast('Прогресс сброшен');
             loadFeed();
-            pollTimer = setInterval(loadFeed, 5000);
-        }
+        };
+        req.onerror = () => showToast('Ошибка сброса');
+    }
 
-        startPolling();
-    </script>
+    // ── Хелперы ──
+    function formatTime(ts) {
+        if (!ts) return '';
+        return new Date(ts).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
+    }
+    function truncate(s, n) {
+        if (!s) return '';
+        return s.length > n ? s.slice(0, n) + '…' : s;
+    }
+
+    // ── Старт + автообновление каждые 5 сек ──
+    function startPolling() {
+        loadFeed();
+        pollTimer = setInterval(loadFeed, 5000);
+    }
+
+    startPolling();
+</script>
 </body>
 </html>

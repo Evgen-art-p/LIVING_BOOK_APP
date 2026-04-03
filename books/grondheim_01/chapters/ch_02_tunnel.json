@@ -1,0 +1,70 @@
+{
+  "chapter_id": "ch_02",
+  "title": "Мерцающий туннель",
+
+  "scenes": [
+
+    {
+      "scene_id": "tunnel_exit",
+      "mode": "free_talk",
+      "max_turns": 3,
+      "on_end": "tunnel_exit",
+
+      "audio_layer": {
+        "ambient": "audio/amb_cave_wind.mp3",
+        "spatial": {
+          "ambient_position": { "azimuth": 0, "distance": 5.0 },
+          "speaker_position": { "azimuth": 0, "distance": 1.5 }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "eirik",
+        "text": "Ветер становится сильнее. Выход совсем близко. Ты чувствуешь, как пахнет снег? Грондхейм ждёт нас снаружи.",
+        "audio_file": "audio/eirik_exit_intro.mp3",
+        "wait_for_user": true
+      },
+
+      "scripted_responses": {
+        "fallback": {
+          "reply_speaker": "iskra",
+          "reply_text": "Мы почти у выхода! Сделай ещё один шаг.",
+          "reply_audio": "audio/isk_exit_fallback.mp3",
+          "memory_vector": null
+        }
+      }
+    },
+
+    {
+      "scene_id": "tunnel_crystals",
+      "mode": "free_talk",
+      "max_turns": 3,
+      "on_end": "tunnel_crystals",
+
+      "audio_layer": {
+        "ambient": "audio/amb_crystals_hum.mp3",
+        "spatial": {
+          "ambient_position": { "azimuth": 0, "distance": 4.0 },
+          "speaker_position": { "azimuth": 10, "distance": 1.0 }
+        }
+      },
+
+      "intro_event": {
+        "speaker": "iskra",
+        "text": "Ты выбрал глубину... Смотри, как кристаллы отражают твет друг в друге. Здесь их сотни! Как ты думаешь — они живые?",
+        "audio_file": "audio/isk_crystals_intro.mp3",
+        "wait_for_user": true
+      },
+
+      "scripted_responses": {
+        "fallback": {
+          "reply_speaker": "eirik",
+          "reply_text": "Тишина в пещере тоже умеет говорить. Просто прислушайся.",
+          "reply_audio": "audio/eirik_crystals_fallback.mp3",
+          "memory_vector": null
+        }
+      }
+    }
+
+  ]
+}
