@@ -816,6 +816,35 @@ def init_db():
 
 init_db()
 
+@app.get("/api/parent/profile/{child_name}")
+async def get_child_profile(child_name: str):
+    """Родительский кабинет: профиль ребёнка."""
+    safe_name = child_name.lower().replace(" ", "_")
+    path = BOOKS_DIR / safe_name / "child_profile.json"
+    if not path.exists():
+        return {"error": "Профиль не найден", "child_name": child_name}
+    return json.loads(path.read_text(encoding="utf-8"))
+ 
+ 
+@app.get("/api/parent/basket/{child_name}")
+async def get_gift_basket(child_name: str):
+    """Родительский кабинет: последняя Корзинка Даров."""
+    safe_name = child_name.lower().replace(" ", "_")
+    path = BOOKS_DIR / safe_name / "gift_baskets" / "latest.json"
+    if not path.exists():
+        return {"error": "Корзинка не найдена", "child_name": child_name}
+    return json.loads(path.read_text(encoding="utf-8"))
+ 
+ 
+@app.get("/api/parent/biography/{child_name}")
+async def get_biography(child_name: str):
+    """Родительский кабинет: биография героя (кармический след)."""
+    safe_name = child_name.lower().replace(" ", "_")
+    path = BOOKS_DIR / safe_name / "biography.json"
+    if not path.exists():
+        return {"error": "Биография не найдена", "child_name": child_name}
+    return json.loads(path.read_text(encoding="utf-8"))
+
 
 # ─── ЗАПУСК ──────────────────────────────────────────────────────────────────
 

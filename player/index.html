@@ -129,10 +129,12 @@
 // ════════════════════════════════════════════════════════════════════
 //  КОНФИГ
 // ════════════════════════════════════════════════════════════════════
-const DEV_MODE   = true;          // ← true = локальная разработка, false = продакшн
-const BOOK_PATH  = '../books/grondheim_01/';
-const CHILD_NAME = 'Артём';
+const DEV_MODE   = true;
+const SERVER_URL = 'http://127.0.0.1:8001';  // Маяк v4.0
+const CHILD_NAME = 'Женя';                    // Имя ребёнка (совпадает с books/)
 const SESSION_ID = 'session_001';
+const BOOK_PATH  = '../books/grondheim_01/';   // Локальная книга (оффлайн-резерв)
+ 
 
 // Цвета CSS для ui_pulse_color из пакета
 const COLOR_MAP = {
@@ -903,6 +905,35 @@ async function onChildSpoke(text) {
     const reply = await Dialog.getReply(text, scene);
     console.log('💬 reply получен:', reply);
     
+    // ── Гибридный Intent: если локальный ответ слаб → идём в LLM ──
+    if (reply.text.includes('Расскажи ещё') || reply.text.includes('Я слышу тебя')) {
+        console.log('☁️ Локальный fallback → запрос к /api/free_talk...');
+        try {
+            const res = await fetch(`${SERVER_URL}/api/free_talk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    child_text: text,
+                    scene_id: currentScene?.scene_id || 'unknown',
+                    chapter_id: currentChapterId || '',
+                    child_name: CHILD_NAME,
+                    session_id: SESSION_ID,
+                }),
+                signal: AbortSignal.timeout(5000),
+            });
+            const cloud = await res.json();
+            if (cloud.text && !cloud.blocked) {
+                reply.text = cloud.text;
+                reply.color = cloud.color || 'cyan';
+                console.log('✅ Ответ от Маяка:', cloud.text);
+                // Помечаем в памяти что был LLM-ответ
+                await Memory.saveUtterance(SESSION_ID, text + ' [LLM]');
+            }
+        } catch(e) {
+            console.warn('⚠️ Маяк недоступен, используем локальный fallback');
+        }
+    }
+
     await Dialog.saveVector(reply.vector, reply.memoryKey, reply.matchedKeyword);
     
     const colorName = await MemoryTemplate.resolve(reply.color);
@@ -942,11 +973,13 @@ const NightBeacon = (() => {
     const URL = 'http://127.0.0.1:8001/beacon';
     const KEY = 'iskra_last_sync';
     const DAY = 86400000;
+    
     async function trySync() {
         if (Date.now() - parseInt(localStorage.getItem(KEY)||'0') < DAY) return;
         if (navigator.connection?.type === 'cellular') return;
         const queue = await Memory.getSyncQueue();
         if (!queue.length) return;
+        
         const batch = {
             device_id:  getDeviceId(),
             session_id: SESSION_ID,
@@ -959,20 +992,35 @@ const NightBeacon = (() => {
                 ...(e.key       && { bio_key: e.key }),
             })),
         };
+        
         if (DEV_MODE) {
             console.log('[NightBeacon] DEV_MODE активен — батч не отправлен:', batch);
             return;
         }
+        
         try {
-            const res = await fetch(URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(batch), signal:AbortSignal.timeout(10000) });
-            if (res.ok) { await Memory.clearSyncQueue(); localStorage.setItem(KEY, Date.now().toString()); }
-        } catch(e) { /* offline — попробуем завтра */ }
+            const res = await fetch(URL, { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify(batch), 
+                signal:AbortSignal.timeout(10000) 
+            });
+            if (res.ok) { 
+                await Memory.clearSyncQueue(); 
+                localStorage.setItem(KEY, Date.now().toString()); 
+            }
+        } catch(e) { console.warn('[NightBeacon] Оффлайн'); }
     }
+    
     function getDeviceId() {
         let id = localStorage.getItem('iskra_device_id');
-        if (!id) { id = 'dev_' + Math.random().toString(36).slice(2); localStorage.setItem('iskra_device_id', id); }
+        if (!id) { 
+            id = 'dev_' + Math.random().toString(36).slice(2); 
+            localStorage.setItem('iskra_device_id', id); 
+        }
         return id;
     }
+    
     return { trySync };
 })();
 
@@ -980,21 +1028,31 @@ const NightBeacon = (() => {
 //  ЗАПУСК
 // ════════════════════════════════════════════════════════════════════
 
-// ЗАМЕНИ ВЕСЬ БЛОК async function start() { ... } НА ЭТОТ:
-async function start() {
+async function checkForNewBooks() {
+    try {
+        const res = await fetch(
+            `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}`,
+            { signal: AbortSignal.timeout(5000) }
+        );
+        const stories = await res.json();
+        
+        if (stories && stories.length > 0) {
+            console.log(`📚 Получено ${stories.length} новых книг!`);
+            speak('О! Кажется, для тебя есть новая история!', null, 'gold');
+        }
+    } catch(e) { console.log('[SYNC] Маяк недоступен'); }
+}
+
+async function start() { // <--- ВОТ ОНА, ВХОДНАЯ ДВЕРЬ!
     document.getElementById('start-screen').style.display = 'none';
     setState('thinking');
 
-    // 1. СНАЧАЛА открываем базу данных — это самое важное
+    // 1. Открываем базу
     await Memory.open();
-    window._dbReady = true;  // ← ДОБАВИТЬ ЭТУ СТРОКУ
-    console.log('✅ База данных готова к работе');  // ← И ЭТУ (для проверки)
+    window._dbReady = true;
+    console.log('✅ База данных готова');
 
-
-    window._dbReady = true;  // Сигнал, что база открыта
-    console.log('✅ База данных готова к работе');
-
-    // 2. ТОЛЬКО ПОТОМ включаем микрофон
+    // 2. Включаем микрофон
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
@@ -1004,13 +1062,17 @@ async function start() {
         micData = new Uint8Array(analyser.frequencyBinCount);
     } catch(e) { console.error('[Mic]', e); }
 
-    // 3. Инициализируем распознавание речи ПОСЛЕ базы данных
+    // 3. Инициализируем голос и логику
     initSTT(); 
     initTTS();
 
     try {
         await BookEngine.init();
         const scene = await loadCurrentScene();
+        
+        // Проверка обновлений
+        setTimeout(() => checkForNewBooks(), 2000); 
+
         speak(`Привет, ${CHILD_NAME}. Добро пожаловать в Грондхейм.`, null, 'cyan', () => playScene(scene));
     } catch(e) {
         console.warn('[BookEngine]', e);
@@ -1018,6 +1080,22 @@ async function start() {
     }
 
     setTimeout(() => NightBeacon.trySync(), 5000);
+}
+
+// СЛУШАТЕЛИ СОБЫТИЙ
+document.getElementById('start-btn').addEventListener('click', () => {
+    autoListen = true;
+    start();
+});
+
+canvas.addEventListener('click', () => { if (iskraState === 'idle') startListening(); });
+canvas.addEventListener('touchstart', e => { 
+    e.preventDefault(); 
+    if (iskraState === 'idle') startListening(); 
+}, { passive: false });
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
