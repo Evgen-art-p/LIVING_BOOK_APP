@@ -133,7 +133,7 @@ const DEV_MODE   = true;
 const SERVER_URL = 'http://127.0.0.1:8001';  // Маяк v4.0
 const CHILD_NAME = 'Женя';                    // Имя ребёнка (совпадает с books/)
 const SESSION_ID = 'session_001';
-const BOOK_PATH  = '../books/grondheim_01/';   // Локальная книга (оффлайн-резерв)
+const BOOK_PATH  = '../books/grondheim_01/'; 
  
 
 // Цвета CSS для ui_pulse_color из пакета
@@ -933,37 +933,39 @@ async function onChildSpoke(text) {
             console.warn('⚠️ Маяк недоступен, используем локальный fallback');
         }
     }
-
-    await Dialog.saveVector(reply.vector, reply.memoryKey, reply.matchedKeyword);
     
-    const colorName = await MemoryTemplate.resolve(reply.color);
-    setIskraColor(colorName);
-    
-    const turns = await Memory.incrementTurn(SESSION_ID);
-    console.log(`📊 turn_count = ${turns}, max_turns = ${scene.max_turns}`);
-    
-    if (scene.max_turns && turns >= scene.max_turns && scene.on_end) {
-        console.log('🔄 максимальное число ходов, перехожу на', scene.on_end);
-        speak(reply.text, reply.audio, null, async () => {
-            const found = await BookEngine.findScene(scene.on_end);
-            if (found) {
-                await Memory.setProgress(SESSION_ID, found.chapterId, scene.on_end, 0);
-                playScene(found.scene);
-            }
-        });
-    } else {
-        console.log('💬 говорю reply.text:', reply.text);
-        speak(reply.text, reply.audio);
-    }
+    speak(reply.text, null, reply.color);
 }
 
-function matchChoice(text, choices) {
-    const t = text.toLowerCase();
-    for (const c of choices) {
-        if ((c.keywords || []).some(k => t.includes(k.toLowerCase()))) return c;
-        if (c.label.toLowerCase().split(' ').some(w => w.length > 3 && t.includes(w))) return c;
+// ════════════════════════════════════════════════════════════════════
+//  СИНХРОНИЗАЦИЯ КНИГ
+// ════════════════════════════════════════════════════════════════════
+
+async function checkForNewBooks() {
+    /* Проверяет, есть ли свежие книги от родителя на Маяке */
+    if (DEV_MODE) {
+        console.log('[SYNC] DEV_MODE — проверяем Маяк на новые книги...');
     }
-    return null;
+    try {
+        const res = await fetch(
+            `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}`,
+            { signal: AbortSignal.timeout(5000) }
+        );
+        const stories = await res.json();
+        
+        if (stories && stories.length > 0) {
+            console.log(`📚 Получено ${stories.length} новых книг от Маяка!`);
+            for (const story of stories) {
+                console.log(`  📖 ${story.title} (${story.story_id})`);
+            }
+            // Уведомляем ребёнка
+            speak('О! Кажется, для тебя есть новая история!', null, 'gold');
+        } else {
+            console.log('[SYNC] Новых книг нет');
+        }
+    } catch(e) {
+        console.log('[SYNC] Маяк недоступен — работаем оффлайн');
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -991,6 +993,11 @@ const NightBeacon = (() => {
                 ...(e.tag       && { tag: e.tag }),
                 ...(e.key       && { bio_key: e.key }),
             })),
+            llm_stats: {  // ← ЭТОТ БЛОК НУЖНО ДОБАВИТЬ (опционально)
+                total_requests: window._llmRequestCount || 0,
+                cache_hits: window._llmCacheHits || 0,
+                estimated_tokens: window._llmTokensUsed || 0,
+            },
         };
         
         if (DEV_MODE) {
@@ -1028,22 +1035,7 @@ const NightBeacon = (() => {
 //  ЗАПУСК
 // ════════════════════════════════════════════════════════════════════
 
-async function checkForNewBooks() {
-    try {
-        const res = await fetch(
-            `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}`,
-            { signal: AbortSignal.timeout(5000) }
-        );
-        const stories = await res.json();
-        
-        if (stories && stories.length > 0) {
-            console.log(`📚 Получено ${stories.length} новых книг!`);
-            speak('О! Кажется, для тебя есть новая история!', null, 'gold');
-        }
-    } catch(e) { console.log('[SYNC] Маяк недоступен'); }
-}
-
-async function start() { // <--- ВОТ ОНА, ВХОДНАЯ ДВЕРЬ!
+async function start() {
     document.getElementById('start-screen').style.display = 'none';
     setState('thinking');
 
@@ -1097,16 +1089,3 @@ canvas.addEventListener('touchstart', e => {
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
-
-document.getElementById('start-btn').addEventListener('click', () => {
-    autoListen = true; // одно касание — дальше только голос
-    start();
-});
-// Касание по canvas — запасной вариант если голос не подхватился
-canvas.addEventListener('click',      () => { if (iskraState === 'idle') startListening(); });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); if (iskraState === 'idle') startListening(); }, { passive: false });
-
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-</script>
-</body>
-</html>

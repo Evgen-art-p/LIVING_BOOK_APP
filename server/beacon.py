@@ -65,7 +65,7 @@ OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
 
 # ─── ПРОМПТЫ АГЕНТОВ ─────────────────────────────────────────────────────────
 # Путь к студии — для загрузки промптов из modules/living_book/
-STUDIO_ROOT = Path(os.getenv("STUDIO_ROOT", str(BASE_DIR / ".." / ".." / "-2")))
+STUDIO_ROOT = Path(os.getenv("STUDIO_ROOT", str(BASE_DIR / ".." / ".." / "студия 2")))
 MODULES_PATH = STUDIO_ROOT / "studio" / "modules" / "living_book"
 
 

@@ -233,7 +233,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
+    // ═══════════════════════════════════════════════════════════════════
+    // КОНФИГ — в начале <script> измени:
+    // ═══════════════════════════════════════════════════════════════════
     const API = 'http://localhost:8001';
+    const CHILD_NAME = 'Женя';    // ← должно совпадать с именем в books/
+    
     let pollTimer = null;
 
     // ── Навигация ──
@@ -252,9 +257,10 @@
         btn.classList.remove('text-slate-500');
         btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-100');
 
-        if (name === 'live')   loadFeed();
-        if (name === 'memory') loadMemory();
-        if (name === 'stats')  loadStats();
+        // ИЗМЕНЕНИЕ 1: switchTab — обнови вызовы
+        if (name === 'live')   { loadFeed(); loadTutorBasket(); }
+        if (name === 'memory') loadBiography();
+        if (name === 'stats')  loadChildProfile();
     }
 
     // ── Тост ──
@@ -328,7 +334,6 @@
 
             // Обновляем Семантическое Зеркало из тегов событий
             updateSemanticMirror(data.events);
-            loadTutorContext();
 
         } catch (e) {
             document.getElementById('feed').innerHTML =
@@ -366,14 +371,13 @@
         showToast("Данные переданы Нейро Спарку. Сюжет адаптируется...");
 
         try {
-            // Тот самый исправленный адрес Главного Маяка!
             const response = await fetch(API + '/api/studio/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    child_name: "Женя", 
+                    child_name: CHILD_NAME, 
                     child_age: "7",     
                     task_context: tutorMessage
                 })
@@ -383,7 +387,7 @@
             
             const data = await response.json();
             showToast("Успех! Сюжет загружен в Грондхейм.");
-            input.value = ''; // Очищаем поле после успешной отправки
+            input.value = '';
 
         } catch (error) {
             console.error("Ошибка Моста Доверия:", error);
@@ -391,48 +395,36 @@
         }
     }
 
-    // ── ПАМЯТЬ: Хроники ──
-    async function loadMemory() {
-        try {
-            const res  = await fetch(`${API}/parent/stats`);
-            const data = await res.json();
+    // ═══════════════════════════════════════════════════════════════════
+    // ИЗМЕНЕНИЕ 2: loadChildProfile (вместо loadStats)
+    // ═══════════════════════════════════════════════════════════════════
 
-            // Выборы
-            const list = document.getElementById('choices-list');
-            if (data.choices_history && data.choices_history.length > 0) {
-                list.innerHTML = data.choices_history.map((c, i) => `
-                    <div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-slate-50 mb-3">
-                        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-50 border border-indigo-100 px-2.5 py-1.5 rounded-xl shrink-0">Выбор ${i+1}</span>
-                        <p class="text-sm text-slate-700 leading-relaxed">${c}</p>
-                    </div>`).join('');
-            } else {
-                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Ещё нет выборов.</div>';
+    async function loadChildProfile() {
+        try {
+            const res = await fetch(`${API}/api/parent/profile/${encodeURIComponent(CHILD_NAME)}`);
+            const data = await res.json();
+            
+            if (data.error) {
+                document.getElementById('stats-grid').innerHTML = 
+                    '<div class="col-span-2 text-center py-10 text-slate-400 text-sm italic">Профиль появится после первой истории.</div>';
+                return;
             }
 
-            // Теги памяти
-            const tagsEl = document.getElementById('memory-tags');
-            if (data.memory_tags && data.memory_tags.length > 0) {
-                tagsEl.innerHTML = data.memory_tags.map(t =>
-                    `<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100 italic">${t}</span>`
-                ).join('');
+            // Семантическое Зеркало — паттерны
+            const tagEl = document.getElementById('semantic-tags');
+            if (data.psychological_patterns && data.psychological_patterns.length > 0) {
+                tagEl.innerHTML = data.psychological_patterns.slice(0, 8).map(p => {
+                    const short = p.split(':')[0] || p;
+                    return `<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">${short}</span>`;
+                }).join('');
             }
-        } catch (e) {
-            document.getElementById('choices-list').innerHTML =
-                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.</div>';
-        }
-    }
 
-    // ── СТАТИСТИКА ──
-    async function loadStats() {
-        try {
-            const res  = await fetch(`${API}/parent/stats`);
-            const data = await res.json();
-
+            // Статистика
             const STAT_CARDS = [
-                { label: 'Сессии',   value: data.total_sessions || 0, icon: '🕯', color: 'indigo' },
-                { label: 'Выборы',   value: data.total_choices  || 0, icon: '🔀', color: 'violet' },
-                { label: 'Диалоги',  value: data.total_chats    || 0, icon: '💬', color: 'emerald' },
-                { label: 'Артефакты',value: (data.artifacts || []).length, icon: '⚡', color: 'amber' },
+                { label: 'Сессии',  value: data.total_sessions || 0, icon: '🕯' },
+                { label: 'Выборы',  value: data.total_choices_made || 0, icon: '🔀' },
+                { label: 'Паттерны', value: (data.psychological_patterns || []).length, icon: '🧠' },
+                { label: 'Персонажи', value: Object.keys(data.character_bonds || {}).length || 0, icon: '👥' },
             ];
 
             document.getElementById('stats-grid').innerHTML = STAT_CARDS.map(s => `
@@ -442,24 +434,160 @@
                     <div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.label}</div>
                 </div>`).join('');
 
+            // Зоны роста
             const artsEl = document.getElementById('artifacts-section');
-            if (data.artifacts && data.artifacts.length > 0) {
+            if (data.growth_zones && data.growth_zones.length > 0) {
                 artsEl.innerHTML = `
                     <div class="mt-6">
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Собранные артефакты</h3>
-                        ${data.artifacts.map(a =>
-                            `<div class="flex items-center gap-3 p-4 rounded-2xl border border-amber-100 bg-amber-50 mb-2">
-                                <span class="text-xl">⚡</span>
-                                <span class="text-sm font-semibold text-amber-800">${a}</span>
-                            </div>`
-                        ).join('')}
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Зоны роста</h3>
+                        ${data.growth_zones.slice(0, 5).map(z => {
+                            const short = z.split(':')[0] || z;
+                            return `<div class="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 mb-2">
+                                <span class="text-xl">🌱</span>
+                                <span class="text-sm font-semibold text-emerald-800">${short}</span>
+                            </div>`;
+                        }).join('')}
                     </div>`;
             } else {
                 artsEl.innerHTML = '';
             }
+
+            // Доминантные стратегии
+            if (data.dominant_strategies && Object.keys(data.dominant_strategies).length > 0) {
+                const sorted = Object.entries(data.dominant_strategies)
+                    .sort((a,b) => b[1] - a[1])
+                    .slice(0, 5);
+                const maxVal = sorted[0][1];
+                artsEl.innerHTML += `
+                    <div class="mt-6">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Доминантные стратегии</h3>
+                        ${sorted.map(([name, count]) => {
+                            const pct = Math.round((count / maxVal) * 100);
+                            return `<div class="mb-3">
+                                <div class="flex justify-between text-xs text-slate-600 mb-1">
+                                    <span>${name}</span><span class="font-bold">${count}</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2">
+                                    <div class="bg-indigo-500 h-2 rounded-full" style="width:${pct}%"></div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+            }
+
         } catch (e) {
             document.getElementById('stats-grid').innerHTML =
-                '<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.</div>';
+                '<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен. Запусти beacon.py</div>';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ИЗМЕНЕНИЕ 3: loadTutorBasket (Корзинка Даров)
+    // ═══════════════════════════════════════════════════════════════════
+
+    async function loadTutorBasket() {
+        try {
+            const res = await fetch(`${API}/api/parent/basket/${encodeURIComponent(CHILD_NAME)}`);
+            const data = await res.json();
+            
+            if (data.error) return;
+
+            // Мостик в Реал
+            const bridgeTip = document.getElementById('bridge-tip');
+            const bridgeText = document.getElementById('bridge-text');
+            
+            if (data.bridge_to_reality) {
+                bridgeTip.style.display = 'block';
+                
+                const starters = data.bridge_to_reality.conversation_starters || [];
+                const activities = data.bridge_to_reality.activities || [];
+                
+                if (starters.length > 0) {
+                    bridgeText.innerHTML = `<strong>Спроси ${CHILD_NAME}:</strong> ${starters[0]}`;
+                }
+                
+                if (activities.length > 0) {
+                    document.getElementById('tutor-current').textContent = 
+                        `💡 Попробуйте: ${activities[0]}`;
+                }
+            }
+
+            // Инсайты для родителя
+            if (data.parent_insights && data.parent_insights.length > 0) {
+                const tagEl = document.getElementById('semantic-tags');
+                const insightTags = data.parent_insights.slice(0, 4).map(p => {
+                    const short = p.split(':')[0] || p;
+                    return `<span class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100">💡 ${short}</span>`;
+                }).join('');
+                tagEl.innerHTML += insightTags;
+            }
+
+        } catch(e) {
+            console.log('[BASKET] Маяк недоступен');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ИЗМЕНЕНИЕ 4: loadBiography (вместо loadMemory)
+    // ═══════════════════════════════════════════════════════════════════
+
+    async function loadBiography() {
+        try {
+            const res = await fetch(`${API}/api/parent/biography/${encodeURIComponent(CHILD_NAME)}`);
+            const data = await res.json();
+
+            const list = document.getElementById('choices-list');
+            
+            if (data.error || !data.karmic_trail || data.karmic_trail.length === 0) {
+                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>';
+                return;
+            }
+
+            // Общая статистика
+            let html = `
+                <div class="flex gap-3 mb-6">
+                    <div class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">
+                        📚 ${data.total_stories || 0} историй
+                    </div>
+                    <div class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-bold border border-violet-100">
+                        👥 ${Object.keys(data.character_bonds || {}).length} персонажей
+                    </div>
+                    <div class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100">
+                        📜 ${(data.karmic_trail || []).length} следов
+                    </div>
+                </div>`;
+
+            // Кармические следы (от новых к старым)
+            html += data.karmic_trail.slice().reverse().map(trail => `
+                <div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white mb-3 shadow-sm">
+                    <div class="text-xl">📜</div>
+                    <div class="flex-1">
+                        <p class="text-sm text-slate-700 font-bold">Глава: ${trail.theme || 'Неизвестная'}</p>
+                        <p class="text-xs text-slate-500 mt-1">${trail.task_context || trail.emotional_goal || ''}</p>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            ${(trail.characters_met || []).map(c => 
+                                `<span class="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-500 rounded-lg border border-violet-100">${c}</span>`
+                            ).join('')}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-2">${trail.date ? new Date(trail.date).toLocaleDateString('ru') : ''}</p>
+                    </div>
+                </div>`).join('');
+
+            list.innerHTML = html;
+
+            // Связи с персонажами
+            const tagsEl = document.getElementById('memory-tags');
+            if (data.character_bonds && Object.keys(data.character_bonds).length > 0) {
+                tagsEl.innerHTML = Object.entries(data.character_bonds)
+                    .sort((a,b) => b[1] - a[1])
+                    .map(([char, count]) => 
+                        `<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100">👤 ${char} (×${count})</span>`
+                    ).join('');
+            }
+
+        } catch (e) {
+            document.getElementById('choices-list').innerHTML =
+                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен. Запусти beacon.py</div>';
         }
     }
 
@@ -485,10 +613,16 @@
         return s.length > n ? s.slice(0, n) + '…' : s;
     }
 
-    // ── Старт + автообновление каждые 5 сек ──
+    // ═══════════════════════════════════════════════════════════════════
+    // ИЗМЕНЕНИЕ 5: startPolling — обнови для работы с новыми API
+    // ═══════════════════════════════════════════════════════════════════
     function startPolling() {
         loadFeed();
-        pollTimer = setInterval(loadFeed, 5000);
+        loadTutorBasket();
+        pollTimer = setInterval(() => {
+            loadFeed();
+            loadTutorBasket();
+        }, 5000);
     }
 
     startPolling();
