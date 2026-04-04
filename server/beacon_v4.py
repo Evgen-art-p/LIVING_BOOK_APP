@@ -31,7 +31,6 @@ import hashlib
 import sqlite3
 import os
 import httpx
-from post_run import run_post_reflection
 from datetime import datetime
 from pathlib import Path
 from functools import lru_cache
@@ -487,20 +486,6 @@ async def generate_book(req: GenerateRequest):
     print("\n[2/3] ПАЙПЛАЙН — 18 агентов...")
     results = await run_full_pipeline(master_brief)
     print(f"  ✅ Пайплайн завершён ({len(results)} агентов)")
-
-    print("\n[2.5/3] РЕФЛЕКСИЯ — Линза Стат + Тьютор Линк + Хронос Мемо...")
-    try:
-        reflection = run_post_reflection(
-            child_name=req.child_name,
-            books_dir=BOOKS_DIR,
-            pipeline_results=results,
-            master_brief=master_brief,
-            studio_root=STUDIO_ROOT,
-        )
-        print(f"  ✅ Рефлексия завершена")
-    except Exception as e:
-        print(f"  ⚠️ Рефлексия не удалась: {e}")
-        reflection = {}
     
     # ── ШАГ 3: СОХРАНЕНИЕ ──
     print("\n[3/3] СОХРАНЕНИЕ Book Package...")
@@ -533,7 +518,6 @@ async def generate_book(req: GenerateRequest):
         "ok": True,
         "pipeline": "SET → A00 ↔ A00a → A01-A16",
         "child_name": req.child_name,
-        "reflection": reflection,
         "book_dir": str(book_dir) if book_dir else None,
         "agents_completed": len([r for r in results.values() if not (isinstance(r, dict) and r.get("status") == "stub")]),
         "agents_stubbed": len([r for r in results.values() if isinstance(r, dict) and r.get("status") == "stub"]),
