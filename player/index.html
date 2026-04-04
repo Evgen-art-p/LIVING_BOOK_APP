@@ -85,6 +85,7 @@
             flex-direction: column;
             align-items: center;
             gap: 16px;
+            z-index: 50;
         }
         #start-btn {
             background: transparent;
@@ -96,6 +97,7 @@
             padding: 12px 28px;
             cursor: pointer;
             transition: all 0.4s;
+            z-index: 51;
         }
         #start-btn:hover { border-color: rgba(0,200,255,0.8); color: rgba(0,200,255,0.9); }
         #offline-badge {
@@ -133,7 +135,7 @@ const DEV_MODE   = true;
 const SERVER_URL = 'http://127.0.0.1:8001';  // Маяк v4.0
 const CHILD_NAME = 'Женя';                    // Имя ребёнка (совпадает с books/)
 const SESSION_ID = 'session_001';
-const BOOK_PATH  = '../books/grondheim_01/'; 
+const BOOK_PATH  = '../books/Женя/'; 
  
 
 // Цвета CSS для ui_pulse_color из пакета
