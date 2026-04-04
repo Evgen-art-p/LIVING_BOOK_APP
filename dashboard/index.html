@@ -9,623 +9,199 @@
     <style>
         body { font-family: 'Nunito', sans-serif; }
         .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
-        .orb-ring {
-            animation: orb-pulse 3s ease-in-out infinite;
-        }
-        .orb-core {
-            animation: core-glow 2s ease-in-out infinite;
-        }
-        @keyframes orb-pulse {
-            0%,100% { transform: scale(1); opacity: 0.8; }
-            50% { transform: scale(1.06); opacity: 1; }
-        }
-        @keyframes core-glow {
-            0%,100% { box-shadow: 0 0 16px rgba(99,102,241,0.5); }
-            50% { box-shadow: 0 0 32px rgba(99,102,241,0.9); }
-        }
-        @keyframes bounce-live {
-            0%,100% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
-        }
+        .orb-ring { animation: orb-pulse 3s ease-in-out infinite; }
+        .orb-core { animation: core-glow 2s ease-in-out infinite; }
+        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.06); opacity: 1; } }
+        @keyframes core-glow { 0%,100% { box-shadow: 0 0 16px rgba(99,102,241,0.5); } 50% { box-shadow: 0 0 32px rgba(99,102,241,0.9); } }
+        @keyframes bounce-live { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
         .live-badge { animation: bounce-live 1.5s infinite; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .event-card { transition: background 0.15s; }
-        .event-card:hover { background: rgba(99,102,241,0.04); }
-
-        /* Toast */
-        .toast {
-            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
-            background: #6366f1; color: white; padding: 8px 20px; border-radius: 20px;
-            font-size: 12px; font-weight: 700; letter-spacing: 0.05em;
-            z-index: 100; display: none;
-            box-shadow: 0 4px 20px rgba(99,102,241,0.4);
-        }
+        .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #6366f1; color: white; padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; z-index: 100; display: none; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
         .toast.show { display: block; animation: toast-in 0.3s ease; }
-        @keyframes toast-in {
-            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-
-        /* Scrollbar subtle */
+        @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900">
-
 <div class="max-w-6xl mx-auto p-4 md:p-8">
-
-    <!-- HEADER -->
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div>
             <p class="text-[10px] font-bold tracking-[0.25em] text-indigo-400 uppercase mb-1">Шесть Пальцев Студия</p>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900">Кабинет Родителя</h1>
-            <p class="text-sm text-slate-400 italic">Фабрика Живых Книжек • Цех №1</p>
+            <p class="text-sm text-slate-400 italic">Фабрика Живых Книжек • Маяк v4.0</p>
         </div>
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <!-- Орб-статус -->
-            <div id="orb-wrap" class="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
+            <div class="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
                 <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center relative">
                     <div class="orb-core w-4 h-4 rounded-full bg-indigo-500"></div>
-                    <div class="live-badge absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">LIVE</div>
                 </div>
                 <div>
-                    <div class="text-xs font-bold text-slate-700 leading-none" id="connection-label">Загрузка...</div>
+                    <div class="text-xs font-bold text-slate-700 leading-none" id="connection-label">Проверка...</div>
                     <div class="text-[10px] text-slate-400 mt-0.5" id="connection-sub"></div>
                 </div>
             </div>
-            <!-- Хронос -->
             <div class="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-100">
-                <span class="relative flex h-2.5 w-2.5">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Хронос Активен</span>
+                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
+                <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Хронос</span>
             </div>
         </div>
     </header>
 
-    <!-- TABS NAV -->
     <div class="flex gap-2 mb-6 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm w-fit">
-        <button onclick="switchTab('live')" id="btn-live"
-            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">
-            📡 Эфир
-        </button>
-        <button onclick="switchTab('memory')" id="btn-memory"
-            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500 hover:text-slate-800 hover:bg-slate-50">
-            📜 Память
-        </button>
-        <button onclick="switchTab('stats')" id="btn-stats"
-            class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500 hover:text-slate-800 hover:bg-slate-50">
-            📊 Статистика
-        </button>
+        <button onclick="switchTab('live')" id="btn-live" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">📡 Эфир</button>
+        <button onclick="switchTab('memory')" id="btn-memory" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📜 Память</button>
+        <button onclick="switchTab('stats')" id="btn-stats" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📊 Статистика</button>
     </div>
 
-    <!-- MAIN GRID -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- LEFT / MAIN CONTENT -->
         <div class="lg:col-span-2 space-y-6">
-
-            <!-- ══ ТАБ: ЭФИР ══ -->
+            <!-- ЭФИР -->
             <div class="tab-content active" id="tab-live">
-
-                <!-- Семантическое Зеркало -->
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
-                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
-                        <span class="text-indigo-400 text-lg">◈</span> Семантическое Зеркало
-                    </h2>
-                    <div class="flex flex-wrap gap-2 mb-6" id="semantic-tags">
-                        <span class="text-sm text-slate-400 italic">Нет данных — начните сессию в Грондхейме</span>
-                    </div>
-                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900 text-sm leading-relaxed" id="bridge-tip" style="display:none">
-                        <span class="font-bold mr-2">💡 Мостик в Реал:</span>
-                        <span id="bridge-text"></span>
-                    </div>
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800"><span class="text-indigo-400 text-lg">◈</span> Семантическое Зеркало</h2>
+                    <div class="flex flex-wrap gap-2 mb-6" id="semantic-tags"><span class="text-sm text-slate-400 italic">Нет данных — создайте первую историю</span></div>
+                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900 text-sm leading-relaxed" id="bridge-tip" style="display:none"><span class="font-bold mr-2">💡 Мостик в Реал:</span><span id="bridge-text"></span></div>
                 </section>
-
-                <!-- Лента событий -->
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-all">
-                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
-                        <span class="text-rose-400 text-lg">◉</span> События Души
-                    </h2>
-                    <div id="feed">
-                        <div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div>
-                    </div>
+                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800"><span class="text-rose-400 text-lg">◉</span> Статус</h2>
+                    <div id="feed"><div class="text-center py-10 text-slate-400 text-sm italic">Проверка связи с Маяком...</div></div>
                 </section>
-
-                <!-- Тьютор Линк / Корзинка Даров -->
                 <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-base font-bold flex items-center gap-2 text-slate-800">
-                            <span>🧺</span> Тьютор Линк
-                        </h2>
+                        <h2 class="text-base font-bold flex items-center gap-2 text-slate-800"><span>🧺</span> Тьютор Линк</h2>
                         <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Контекст дня</span>
                     </div>
-                    <textarea id="tutor-input"
-                        class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 p-4 rounded-2xl text-sm resize-none min-h-[80px] font-[Nunito] transition-colors"
-                        placeholder="Расскажите о важном событии дня, планах на завтра..."></textarea>
+                    <textarea id="tutor-input" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 p-4 rounded-2xl text-sm resize-none min-h-[80px] font-[Nunito]" placeholder="Опишите ситуацию: Женя боится темноты..."></textarea>
                     <p class="text-xs text-indigo-600 font-semibold italic mt-2" id="tutor-current"></p>
-                    <button onclick="sendTutor()"
-                        class="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98] text-sm tracking-wide">
-                        Внедрить в мир книги ✦
-                    </button>
+                    <button onclick="sendTutor()" class="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98] text-sm tracking-wide">Создать историю ✦</button>
                 </section>
             </div>
-
-            <!-- ══ ТАБ: ПАМЯТЬ ══ -->
+            <!-- ПАМЯТЬ -->
             <div class="tab-content" id="tab-memory">
                 <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
                     <h2 class="text-xl font-bold text-slate-900 mb-1">Хроники Грондхейма</h2>
-                    <p class="text-sm text-slate-400 mb-6">Все выборы и путешествия ребёнка.</p>
-                    <div id="choices-list">
-                        <div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div>
-                    </div>
+                    <p class="text-sm text-slate-400 mb-6">Биография героя.</p>
+                    <div id="choices-list"><div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div></div>
                     <div class="flex flex-wrap gap-2 mt-6" id="memory-tags"></div>
                 </section>
             </div>
-
-            <!-- ══ ТАБ: СТАТИСТИКА ══ -->
+            <!-- СТАТИСТИКА -->
             <div class="tab-content" id="tab-stats">
                 <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-6">Статистика</h2>
-                    <div class="grid grid-cols-2 gap-4 mb-6" id="stats-grid">
-                        <div class="text-center py-10 text-slate-400 text-sm italic col-span-2">Загрузка...</div>
-                    </div>
+                    <h2 class="text-xl font-bold text-slate-900 mb-6">Профиль ребёнка</h2>
+                    <div class="grid grid-cols-2 gap-4 mb-6" id="stats-grid"><div class="text-center py-10 text-slate-400 text-sm italic col-span-2">Загрузка...</div></div>
                     <div id="artifacts-section"></div>
                 </section>
             </div>
-
-        </div><!-- /left -->
-
-        <!-- RIGHT SIDEBAR -->
+        </div>
+        <!-- SIDEBAR -->
         <div class="space-y-5">
-
-            <!-- Границы Мира -->
             <section class="bg-slate-900 text-white p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-                <div class="relative z-10">
-                    <h2 class="text-base font-bold mb-6 text-white">Границы Мира</h2>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="text-slate-400">Сон персонажа</span>
-                            <span class="text-indigo-400 font-bold tracking-wider">21:00 — 08:00</span>
-                        </div>
-                        <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                        <p class="text-[10px] text-slate-500 leading-relaxed uppercase tracking-wider">
-                            В это время Искорка уходит в Гавань и не реагирует на внешние стимулы.
-                        </p>
-                    </div>
-                </div>
+                <div class="relative z-10"><h2 class="text-base font-bold mb-6 text-white">Границы Мира</h2><div class="space-y-4"><div class="flex justify-between items-center text-sm"><span class="text-slate-400">Сон</span><span class="text-indigo-400 font-bold">21:00 — 08:00</span></div><input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"></div></div>
                 <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500 opacity-10 rounded-full blur-3xl"></div>
             </section>
-
-            <!-- Связь с Локой -->
-            <button class="w-full p-6 bg-pink-50 text-pink-600 rounded-[2rem] border border-pink-100 border-b-4 border-b-pink-200 flex items-center justify-between hover:bg-pink-100 transition-all group active:border-b-0 active:translate-y-0.5">
-                <div class="flex items-center gap-4 text-left">
-                    <span class="text-3xl animate-bounce">☁️</span>
-                    <div>
-                        <p class="font-bold text-pink-700 leading-none">Связь с Локой</p>
-                        <p class="text-[10px] text-pink-500 uppercase mt-1 tracking-widest font-bold">Поддержка Студии</p>
-                    </div>
-                </div>
-                <span class="text-xl group-hover:translate-x-2 transition-transform">→</span>
-            </button>
-
-            <!-- Dev Reset -->
-            <button onclick="resetProgress()"
-                class="w-full p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-all">
-                ⚠ Сброс прогресса (DEV)
-            </button>
-
-            <!-- Footer -->
-            <div class="p-4 text-center">
-                <p class="text-[10px] text-slate-400 uppercase tracking-widest leading-loose">
-                    Шесть Пальцев Студия<br>© 2026 Грондхейм Протокол
-                </p>
-            </div>
-        </div><!-- /sidebar -->
-
-    </div><!-- /grid -->
-</div><!-- /container -->
-
+            <button onclick="resetProgress()" class="w-full p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-all">⚠ Сброс (DEV)</button>
+            <div class="p-4 text-center"><p class="text-[10px] text-slate-400 uppercase tracking-widest leading-loose">Шесть Пальцев Студия<br>© 2026</p></div>
+        </div>
+    </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
-    // ═══════════════════════════════════════════════════════════════════
-    // КОНФИГ — в начале <script> измени:
-    // ═══════════════════════════════════════════════════════════════════
-    const API = 'http://localhost:8001';
-    const CHILD_NAME = 'Женя';    // ← должно совпадать с именем в books/
-    
-    let pollTimer = null;
+const API = 'http://localhost:8001';
+const CHILD_NAME = 'Женя';
 
-    // ── Навигация ──
-    function switchTab(name) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => {
-            b.className = b.className
-                .replace('bg-indigo-600 text-white shadow-md shadow-indigo-100', '')
-                .trim();
-            b.classList.add('text-slate-500');
-            b.classList.remove('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
-        });
+function switchTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-indigo-600','text-white','shadow-md','shadow-indigo-100'); b.classList.add('text-slate-500'); });
+    document.getElementById('tab-'+name).classList.add('active');
+    const btn = document.getElementById('btn-'+name);
+    btn.classList.remove('text-slate-500');
+    btn.classList.add('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
+    if (name==='live')  { checkHealth(); loadTutorBasket(); }
+    if (name==='memory') loadBiography();
+    if (name==='stats')  loadChildProfile();
+}
+function showToast(m) { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
 
-        document.getElementById('tab-' + name).classList.add('active');
-        const btn = document.getElementById('btn-' + name);
-        btn.classList.remove('text-slate-500');
-        btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-100');
-
-        // ИЗМЕНЕНИЕ 1: switchTab — обнови вызовы
-        if (name === 'live')   { loadFeed(); loadTutorBasket(); }
-        if (name === 'memory') loadBiography();
-        if (name === 'stats')  loadChildProfile();
+async function checkHealth() {
+    try {
+        const r = await fetch(`${API}/health`);
+        const h = await r.json();
+        document.getElementById('connection-label').textContent = 'Маяк v4.0';
+        document.getElementById('connection-sub').textContent = `${h.agents_available} агентов`;
+        document.getElementById('feed').innerHTML = `<div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><div class="text-3xl mb-3">🚀</div><p class="text-sm text-indigo-700 font-bold">Маяк подключён</p><p class="text-xs text-indigo-500 mt-1">Агентов: ${h.agents_available} | ${h.model}</p><p class="text-xs text-indigo-400 mt-3">Напишите задачу и нажмите «Создать историю»</p></div>`;
+    } catch(e) {
+        document.getElementById('connection-label').textContent = 'Нет связи';
+        document.getElementById('feed').innerHTML = '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Маяк недоступен.<br><code class="text-xs">cd server && python beacon.py</code></div>';
     }
+}
 
-    // ── Тост ──
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 3000);
-    }
+async function sendTutor() {
+    const input = document.getElementById('tutor-input');
+    const msg = input.value.trim();
+    if (!msg) { showToast("Заполните задачу!"); return; }
+    showToast("Запускаю пайплайн... 2-5 мин.");
+    try {
+        const r = await fetch(`${API}/api/studio/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({child_name:CHILD_NAME,child_age:"7",task_context:msg}) });
+        if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e.detail||`Ошибка ${r.status}`); }
+        const d = await r.json();
+        showToast(`Готово! ${d.agents_completed} агентов.`);
+        input.value='';
+        loadChildProfile(); loadTutorBasket(); loadBiography();
+    } catch(e) { console.error(e); showToast(`Ошибка: ${e.message}`); }
+}
 
-    // ── EVENT TYPE helpers ──
-    const TYPE_CONFIG = {
-        choice:        { label: 'Выбор',    cls: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-        chat:          { label: 'Диалог',   cls: 'bg-violet-50 text-violet-600 border-violet-100' },
-        artifact:      { label: 'Артефакт', cls: 'bg-amber-50 text-amber-600 border-amber-100' },
-        tutor_link:    { label: 'Тьютор',   cls: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-        session_start: { label: 'Старт',    cls: 'bg-lime-50 text-lime-600 border-lime-100' },
-        session_end:   { label: 'Конец',    cls: 'bg-slate-100 text-slate-500 border-slate-200' },
-    };
-    function typeChip(type) {
-        const cfg = TYPE_CONFIG[type] || { label: type, cls: 'bg-slate-100 text-slate-500 border-slate-200' };
-        return `<span class="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg border ${cfg.cls}">${cfg.label}</span>`;
-    }
+async function loadChildProfile() {
+    try {
+        const r = await fetch(`${API}/api/parent/profile/${encodeURIComponent(CHILD_NAME)}`);
+        const d = await r.json();
+        if (d.error) { document.getElementById('stats-grid').innerHTML='<div class="col-span-2 text-center py-10 text-slate-400 text-sm italic">Профиль появится после первой истории.</div>'; return; }
+        const tagEl=document.getElementById('semantic-tags');
+        if (d.psychological_patterns?.length) tagEl.innerHTML=d.psychological_patterns.slice(0,8).map(p=>`<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">${(p.split(':')[0]||p)}</span>`).join('');
+        document.getElementById('stats-grid').innerHTML=[{l:'Сессии',v:d.total_sessions||0,i:'🕯'},{l:'Выборы',v:d.total_choices_made||0,i:'🔀'},{l:'Паттерны',v:(d.psychological_patterns||[]).length,i:'🧠'},{l:'Персонажи',v:Object.keys(d.character_bonds||{}).length,i:'👥'}].map(s=>`<div class="p-6 rounded-2xl border border-slate-100 bg-slate-50 text-center"><div class="text-3xl mb-2">${s.i}</div><div class="text-3xl font-bold text-slate-800">${s.v}</div><div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.l}</div></div>`).join('');
+        const a=document.getElementById('artifacts-section'); a.innerHTML='';
+        if (d.growth_zones?.length) a.innerHTML=`<div class="mt-6"><h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Зоны роста</h3>${d.growth_zones.slice(0,5).map(z=>`<div class="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 mb-2"><span class="text-xl">🌱</span><span class="text-sm font-semibold text-emerald-800">${(z.split(':')[0]||z)}</span></div>`).join('')}</div>`;
+    } catch(e) { document.getElementById('stats-grid').innerHTML='<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен</div>'; }
+}
 
-    // ── ЭФИР: Лента событий ──
-    async function loadFeed() {
-        try {
-            const res  = await fetch(`${API}/parent/feed?limit=15`);
-            const data = await res.json();
-            const feed = document.getElementById('feed');
-
-            if (!data.events || data.events.length === 0) {
-                feed.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Пока нет событий. Ребёнок ещё не играл.</div>';
-                document.getElementById('connection-label').textContent = 'Ожидание...';
-                document.getElementById('connection-sub').textContent = '';
-                return;
-            }
-
-            document.getElementById('connection-label').textContent = 'Связь активна';
-            document.getElementById('connection-sub').textContent = `Последнее: ${formatTime(data.events[0].ts)}`;
-
-            feed.innerHTML = data.events.map(ev => {
-                let text = '';
-                switch (ev.type) {
-                    case 'choice':
-                        text = `Выбрал: <strong>${ev.choice_label || ev.choice_id}</strong>`;
-                        if (ev.speaker) text += ` <span class="text-slate-400">(сцена с ${ev.speaker})</span>`;
-                        break;
-                    case 'chat':
-                        text = `<strong>${ev.speaker}:</strong> «${truncate(ev.character_said, 80)}»`;
-                        break;
-                    case 'artifact':
-                        text = `Новый артефакт: <strong>${ev.artifact}</strong>`;
-                        break;
-                    case 'tutor_link':
-                        text = `Тьютор Линк: «${truncate(ev.context, 60)}»`;
-                        break;
-                    case 'session_start': text = 'Сессия началась'; break;
-                    case 'session_end':   text = 'Сессия сохранена'; break;
-                    default: text = JSON.stringify(ev);
-                }
-                return `
-                    <div class="event-card flex items-start gap-3 p-4 rounded-2xl border border-slate-50 mb-2">
-                        <div class="pt-0.5 shrink-0">${typeChip(ev.type)}</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-sm text-slate-700 leading-relaxed">${text}</div>
-                        </div>
-                        <div class="text-[10px] text-slate-300 font-mono shrink-0 pt-1">${formatTime(ev.ts)}</div>
-                    </div>`;
-            }).join('');
-
-            // Обновляем Семантическое Зеркало из тегов событий
-            updateSemanticMirror(data.events);
-
-        } catch (e) {
-            document.getElementById('feed').innerHTML =
-                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен.<br><code class="text-xs">cd server && uvicorn main:app --reload</code></div>';
-            document.getElementById('connection-label').textContent = 'Нет связи';
+async function loadTutorBasket() {
+    try {
+        const r = await fetch(`${API}/api/parent/basket/${encodeURIComponent(CHILD_NAME)}`);
+        const d = await r.json();
+        if (d.error) return;
+        if (d.bridge_to_reality) {
+            document.getElementById('bridge-tip').style.display='block';
+            const s=d.bridge_to_reality.conversation_starters||[];
+            if (s.length) document.getElementById('bridge-text').innerHTML=`<strong>Спроси ${CHILD_NAME}:</strong> ${s[0]}`;
+            const a=d.bridge_to_reality.activities||[];
+            if (a.length) document.getElementById('tutor-current').textContent=`💡 ${a[0]}`;
         }
-    }
+    } catch(e) {}
+}
 
-    // Семантические теги — собираем из событий или показываем заглушку
-    function updateSemanticMirror(events) {
-        const tagEl = document.getElementById('semantic-tags');
-        // Пробуем собрать теги из memory_tags если они есть в событиях
-        const tagSet = new Set();
-        events.forEach(ev => {
-            if (ev.tags && Array.isArray(ev.tags)) ev.tags.forEach(t => tagSet.add(t));
-        });
-        if (tagSet.size > 0) {
-            tagEl.innerHTML = [...tagSet].map(t =>
-                `<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-semibold border border-indigo-100 italic">${t}</span>`
-            ).join('');
-        }
-        // Если нет тегов — оставляем как есть (надпись «нет данных»)
-    }
+async function loadBiography() {
+    try {
+        const r = await fetch(`${API}/api/parent/biography/${encodeURIComponent(CHILD_NAME)}`);
+        const d = await r.json();
+        const list=document.getElementById('choices-list');
+        if (d.error||!d.karmic_trail?.length) { list.innerHTML='<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>'; return; }
+        let h=`<div class="flex gap-3 mb-6"><div class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">📚 ${d.total_stories||0} историй</div><div class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-bold border border-violet-100">👥 ${Object.keys(d.character_bonds||{}).length} персонажей</div></div>`;
+        h+=d.karmic_trail.slice().reverse().map(t=>`<div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white mb-3 shadow-sm"><div class="text-xl">📜</div><div class="flex-1"><p class="text-sm text-slate-700 font-bold">${t.theme||'Глава'}</p><p class="text-xs text-slate-500 mt-1">${t.task_context||t.emotional_goal||''}</p><div class="flex flex-wrap gap-1 mt-2">${(t.characters_met||[]).map(c=>`<span class="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-500 rounded-lg border border-violet-100">${c}</span>`).join('')}</div><p class="text-[10px] text-slate-400 mt-2">${t.date?new Date(t.date).toLocaleDateString('ru'):''}</p></div></div>`).join('');
+        list.innerHTML=h;
+        const tags=document.getElementById('memory-tags');
+        if (d.character_bonds) tags.innerHTML=Object.entries(d.character_bonds).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100">👤 ${c} (×${n})</span>`).join('');
+    } catch(e) { document.getElementById('choices-list').innerHTML='<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен</div>'; }
+}
 
-    // ── Тьютор Линк ──
-    async function sendTutor() {
-        const input = document.getElementById('tutor-input');
-        const tutorMessage = input.value;
+function resetProgress() { if (!confirm('Сбросить прогресс?')) return; indexedDB.deleteDatabase('iskra_fort').onsuccess=()=>showToast('Сброшено'); }
 
-        if (!tutorMessage.trim()) {
-            showToast("Ошибка: Заполните контекст задачи!");
-            return;
-        }
-
-        showToast("Данные переданы Нейро Спарку. Сюжет адаптируется...");
-
-        try {
-            const response = await fetch(API + '/api/studio/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    child_name: CHILD_NAME, 
-                    child_age: "7",     
-                    task_context: tutorMessage
-                })
-            });
-
-            if (!response.ok) throw new Error('Ошибка сервера Студии');
-            
-            const data = await response.json();
-            showToast("Успех! Сюжет загружен в Грондхейм.");
-            input.value = '';
-
-        } catch (error) {
-            console.error("Ошибка Моста Доверия:", error);
-            showToast("Ошибка отправки! Проверьте, включен ли Маяк.");
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // ИЗМЕНЕНИЕ 2: loadChildProfile (вместо loadStats)
-    // ═══════════════════════════════════════════════════════════════════
-
-    async function loadChildProfile() {
-        try {
-            const res = await fetch(`${API}/api/parent/profile/${encodeURIComponent(CHILD_NAME)}`);
-            const data = await res.json();
-            
-            if (data.error) {
-                document.getElementById('stats-grid').innerHTML = 
-                    '<div class="col-span-2 text-center py-10 text-slate-400 text-sm italic">Профиль появится после первой истории.</div>';
-                return;
-            }
-
-            // Семантическое Зеркало — паттерны
-            const tagEl = document.getElementById('semantic-tags');
-            if (data.psychological_patterns && data.psychological_patterns.length > 0) {
-                tagEl.innerHTML = data.psychological_patterns.slice(0, 8).map(p => {
-                    const short = p.split(':')[0] || p;
-                    return `<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">${short}</span>`;
-                }).join('');
-            }
-
-            // Статистика
-            const STAT_CARDS = [
-                { label: 'Сессии',  value: data.total_sessions || 0, icon: '🕯' },
-                { label: 'Выборы',  value: data.total_choices_made || 0, icon: '🔀' },
-                { label: 'Паттерны', value: (data.psychological_patterns || []).length, icon: '🧠' },
-                { label: 'Персонажи', value: Object.keys(data.character_bonds || {}).length || 0, icon: '👥' },
-            ];
-
-            document.getElementById('stats-grid').innerHTML = STAT_CARDS.map(s => `
-                <div class="p-6 rounded-2xl border border-slate-100 bg-slate-50 text-center">
-                    <div class="text-3xl mb-2">${s.icon}</div>
-                    <div class="text-3xl font-bold text-slate-800">${s.value}</div>
-                    <div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.label}</div>
-                </div>`).join('');
-
-            // Зоны роста
-            const artsEl = document.getElementById('artifacts-section');
-            if (data.growth_zones && data.growth_zones.length > 0) {
-                artsEl.innerHTML = `
-                    <div class="mt-6">
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Зоны роста</h3>
-                        ${data.growth_zones.slice(0, 5).map(z => {
-                            const short = z.split(':')[0] || z;
-                            return `<div class="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 mb-2">
-                                <span class="text-xl">🌱</span>
-                                <span class="text-sm font-semibold text-emerald-800">${short}</span>
-                            </div>`;
-                        }).join('')}
-                    </div>`;
-            } else {
-                artsEl.innerHTML = '';
-            }
-
-            // Доминантные стратегии
-            if (data.dominant_strategies && Object.keys(data.dominant_strategies).length > 0) {
-                const sorted = Object.entries(data.dominant_strategies)
-                    .sort((a,b) => b[1] - a[1])
-                    .slice(0, 5);
-                const maxVal = sorted[0][1];
-                artsEl.innerHTML += `
-                    <div class="mt-6">
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Доминантные стратегии</h3>
-                        ${sorted.map(([name, count]) => {
-                            const pct = Math.round((count / maxVal) * 100);
-                            return `<div class="mb-3">
-                                <div class="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>${name}</span><span class="font-bold">${count}</span>
-                                </div>
-                                <div class="w-full bg-slate-100 rounded-full h-2">
-                                    <div class="bg-indigo-500 h-2 rounded-full" style="width:${pct}%"></div>
-                                </div>
-                            </div>`;
-                        }).join('')}
-                    </div>`;
-            }
-
-        } catch (e) {
-            document.getElementById('stats-grid').innerHTML =
-                '<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен. Запусти beacon.py</div>';
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // ИЗМЕНЕНИЕ 3: loadTutorBasket (Корзинка Даров)
-    // ═══════════════════════════════════════════════════════════════════
-
-    async function loadTutorBasket() {
-        try {
-            const res = await fetch(`${API}/api/parent/basket/${encodeURIComponent(CHILD_NAME)}`);
-            const data = await res.json();
-            
-            if (data.error) return;
-
-            // Мостик в Реал
-            const bridgeTip = document.getElementById('bridge-tip');
-            const bridgeText = document.getElementById('bridge-text');
-            
-            if (data.bridge_to_reality) {
-                bridgeTip.style.display = 'block';
-                
-                const starters = data.bridge_to_reality.conversation_starters || [];
-                const activities = data.bridge_to_reality.activities || [];
-                
-                if (starters.length > 0) {
-                    bridgeText.innerHTML = `<strong>Спроси ${CHILD_NAME}:</strong> ${starters[0]}`;
-                }
-                
-                if (activities.length > 0) {
-                    document.getElementById('tutor-current').textContent = 
-                        `💡 Попробуйте: ${activities[0]}`;
-                }
-            }
-
-            // Инсайты для родителя
-            if (data.parent_insights && data.parent_insights.length > 0) {
-                const tagEl = document.getElementById('semantic-tags');
-                const insightTags = data.parent_insights.slice(0, 4).map(p => {
-                    const short = p.split(':')[0] || p;
-                    return `<span class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100">💡 ${short}</span>`;
-                }).join('');
-                tagEl.innerHTML += insightTags;
-            }
-
-        } catch(e) {
-            console.log('[BASKET] Маяк недоступен');
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // ИЗМЕНЕНИЕ 4: loadBiography (вместо loadMemory)
-    // ═══════════════════════════════════════════════════════════════════
-
-    async function loadBiography() {
-        try {
-            const res = await fetch(`${API}/api/parent/biography/${encodeURIComponent(CHILD_NAME)}`);
-            const data = await res.json();
-
-            const list = document.getElementById('choices-list');
-            
-            if (data.error || !data.karmic_trail || data.karmic_trail.length === 0) {
-                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>';
-                return;
-            }
-
-            // Общая статистика
-            let html = `
-                <div class="flex gap-3 mb-6">
-                    <div class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">
-                        📚 ${data.total_stories || 0} историй
-                    </div>
-                    <div class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-bold border border-violet-100">
-                        👥 ${Object.keys(data.character_bonds || {}).length} персонажей
-                    </div>
-                    <div class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100">
-                        📜 ${(data.karmic_trail || []).length} следов
-                    </div>
-                </div>`;
-
-            // Кармические следы (от новых к старым)
-            html += data.karmic_trail.slice().reverse().map(trail => `
-                <div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white mb-3 shadow-sm">
-                    <div class="text-xl">📜</div>
-                    <div class="flex-1">
-                        <p class="text-sm text-slate-700 font-bold">Глава: ${trail.theme || 'Неизвестная'}</p>
-                        <p class="text-xs text-slate-500 mt-1">${trail.task_context || trail.emotional_goal || ''}</p>
-                        <div class="flex flex-wrap gap-1 mt-2">
-                            ${(trail.characters_met || []).map(c => 
-                                `<span class="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-500 rounded-lg border border-violet-100">${c}</span>`
-                            ).join('')}
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-2">${trail.date ? new Date(trail.date).toLocaleDateString('ru') : ''}</p>
-                    </div>
-                </div>`).join('');
-
-            list.innerHTML = html;
-
-            // Связи с персонажами
-            const tagsEl = document.getElementById('memory-tags');
-            if (data.character_bonds && Object.keys(data.character_bonds).length > 0) {
-                tagsEl.innerHTML = Object.entries(data.character_bonds)
-                    .sort((a,b) => b[1] - a[1])
-                    .map(([char, count]) => 
-                        `<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100">👤 ${char} (×${count})</span>`
-                    ).join('');
-            }
-
-        } catch (e) {
-            document.getElementById('choices-list').innerHTML =
-                '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен. Запусти beacon.py</div>';
-        }
-    }
-
-    // ── Dev: Сброс прогресса ──
-    async function resetProgress() {
-        if (!confirm('Сбросить весь прогресс? (только DEV)')) return;
-        // Очистка IndexedDB iskra_fort
-        const req = indexedDB.deleteDatabase('iskra_fort');
-        req.onsuccess = () => {
-            showToast('Прогресс сброшен');
-            loadFeed();
-        };
-        req.onerror = () => showToast('Ошибка сброса');
-    }
-
-    // ── Хелперы ──
-    function formatTime(ts) {
-        if (!ts) return '';
-        return new Date(ts).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
-    }
-    function truncate(s, n) {
-        if (!s) return '';
-        return s.length > n ? s.slice(0, n) + '…' : s;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // ИЗМЕНЕНИЕ 5: startPolling — обнови для работы с новыми API
-    // ═══════════════════════════════════════════════════════════════════
-    function startPolling() {
-        loadFeed();
-        loadTutorBasket();
-        pollTimer = setInterval(() => {
-            loadFeed();
-            loadTutorBasket();
-        }, 5000);
-    }
-
-    startPolling();
+checkHealth();
+loadTutorBasket();
+setInterval(checkHealth, 15000);
 </script>
 </body>
 </html>

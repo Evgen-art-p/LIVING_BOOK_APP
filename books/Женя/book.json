@@ -1,0 +1,24 @@
+{
+  "id": "grondheim_book_01",
+  "title": "Приключение Жени: Лабиринт Имен",
+  "description": "История о Жене, который открывает, что его имя — ключ к волшебному миру, полному скрытых талантов и удивительных открытий. Ему предстоит пройти через Лабиринт Имен, чтобы раскрыть свою уникальность.",
+  "age_group": "7-12",
+  "language": "ru",
+  "version": "1.0.0",
+  "created_by": "Six Fingers Studio",
+  "chapters": [
+    {
+      "id": "ch01",
+      "title": "Начало Пути: Зов Имени",
+      "file": "chapters/ch01.json"
+    }
+  ],
+  "characters": [
+    {
+      "id": "zhenya",
+      "file": "characters/zhenya.json"
+    }
+  ],
+  "starting_chapter": "ch01",
+  "starting_scene": "scene_01"
+}

@@ -41,7 +41,20 @@ from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+# 🎯 ДИАГНОСТИКА (Вставь это!)
+BASE_DIR = Path(__file__).parent.resolve()
+env_path = BASE_DIR / ".." / ".env"
+
+print(f"--- 🔍 ПРОВЕРКА МАЯКА ---")
+print(f"📍 Я нахожусь тут: {BASE_DIR}")
+print(f"📂 Ищу .env здесь: {env_path}")
+print(f"❓ Файл существует?: {'✅ ДА' if env_path.exists() else '❌ НЕТ'}")
+
+load_dotenv(env_path)
+key = os.getenv("OPENROUTER_API_KEY")
+print(f"🔑 Ключ в памяти: {'✅ СЧИТАН' if key else '❌ ПУСТО'}")
+print(f"------------------------")
+
 
 app = FastAPI(title="Живая Книга — Единый Сервер v4.0", version="4.0.0")
 
@@ -57,6 +70,8 @@ BASE_DIR     = Path(__file__).parent
 BOOKS_DIR    = BASE_DIR / ".." / "books"       # LIVING_BOOK_APP/books/
 PERSONAL_DIR = BOOKS_DIR / "personal"
 BEACON_DB    = BASE_DIR / "beacon.db"
+
+load_dotenv(BASE_DIR / ".." / ".env")
 
 # ─── OPENROUTER ──────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")

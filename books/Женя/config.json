@@ -1,0 +1,17 @@
+{
+  "llm": {
+    "provider": "google",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "max_tokens": 300
+  },
+  "stt": {
+    "model": "whisper-large-v3-turbo",
+    "language": "ru"
+  },
+  "tts": {
+    "provider": "elevenlabs",
+    "default_speed": 1.0
+  }
+}

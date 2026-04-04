@@ -1,0 +1,30 @@
+{
+  "child_name": "Женя",
+  "created_at": "2026-04-04T22:41:01.013946",
+  "total_sessions": 1,
+  "total_choices_made": 0,
+  "psychological_patterns": [],
+  "growth_zones": [],
+  "dominant_strategies": {},
+  "emotional_trajectory": [
+    {
+      "date": "2026-04-04T22:41:01.013946",
+      "theme": "приключение, самопознание, раскрытие талантов",
+      "emotional_goal": "уверенность, радость открытия, чувство силы и уникальности",
+      "patterns_count": 0
+    }
+  ],
+  "sessions": [
+    {
+      "date": "2026-04-04T22:41:01.013946",
+      "theme": "приключение, самопознание, раскрытие талантов",
+      "task_context": "женя",
+      "age_group": "7-12",
+      "patterns": [],
+      "growth_zones": [],
+      "parent_insights": [],
+      "choice_statistics": {}
+    }
+  ],
+  "updated_at": "2026-04-04T22:41:01.013946"
+}
