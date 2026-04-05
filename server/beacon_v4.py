@@ -52,10 +52,14 @@ app.add_middleware(
 )
 
 # ─── ПУТИ ────────────────────────────────────────────────────────────────────
-BASE_DIR     = Path(__file__).parent
-BOOKS_DIR    = BASE_DIR / ".." / "books"       # LIVING_BOOK_APP/books/
+BASE_DIR  = Path(__file__).resolve().parent          # .../server/
+BOOKS_DIR = Path(__file__).resolve().parent.parent / "books"   # .../books/
+BOOKS_DIR.mkdir(parents=True, exist_ok=True)
+
 PERSONAL_DIR = BOOKS_DIR / "personal"
 BEACON_DB    = BASE_DIR / "beacon.db"
+
+print(f"📁 BOOKS_DIR = {BOOKS_DIR}")
 
 # ─── OPENROUTER ──────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
@@ -64,7 +68,7 @@ OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
 
 # ─── ПРОМПТЫ АГЕНТОВ ─────────────────────────────────────────────────────────
 # Путь к студии — для загрузки промптов из modules/living_book/
-STUDIO_ROOT = Path(os.getenv("STUDIO_ROOT", str(BASE_DIR / ".." / ".." / "-2")))
+STUDIO_ROOT  = Path(os.getenv("STUDIO_ROOT", str(BASE_DIR / ".." / ".." / "-2")))
 MODULES_PATH = STUDIO_ROOT / "studio" / "modules" / "living_book"
 
 
@@ -597,34 +601,60 @@ async def free_talk(req: FreeTalkRequest):
 
 # ─── ИСКОРКА ЗАБИРАЕТ КНИГИ ─────────────────────────────────────────────────
 
-@app.get("/api/beacon/stories/{child_name}")
-async def get_stories(child_name: str):
-    """Искорка забирает pending-книги."""
-    safe_name = child_name.lower().replace(" ", "_")
-    stories_dir = BASE_DIR / "stories" / safe_name
-    
-    if not stories_dir.exists():
-        return []
-    
-    pending = []
-    for f in stories_dir.iterdir():
-        if f.name.endswith("_pending.json"):
-            with open(f, "r", encoding="utf-8") as fp:
-                story = json.load(fp)
-            
-            pending.append({
-                "story_id": f.name.replace("_pending.json", ""),
-                "title": story.get("book.json", {}).get("title", story.get("book", {}).get("title", "Новая история")),
-                "package": story,
-                "created_at": datetime.fromtimestamp(f.stat().st_ctime).isoformat(),
-            })
-            
-            # Переименовываем в delivered
-            new_name = f.name.replace("_pending", "_delivered")
-            f.rename(stories_dir / new_name)
-    
-    return pending
+def _find_book_path(child_name: str) -> Optional[Path]:
+    """
+    Ищет book.json в BOOKS_DIR с учётом регистра папки.
+    Приоритет: точное совпадение → lower() → case-insensitive перебор.
+    """
+    candidates = [
+        BOOKS_DIR / child_name / "book.json",
+        BOOKS_DIR / child_name.lower() / "book.json",
+        BOOKS_DIR / child_name.lower().replace(" ", "_") / "book.json",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
 
+    # Case-insensitive fallback: перебираем все подпапки BOOKS_DIR
+    if BOOKS_DIR.exists():
+        target_lower = child_name.lower().replace(" ", "_")
+        for entry in BOOKS_DIR.iterdir():
+            if entry.is_dir() and entry.name.lower().replace(" ", "_") == target_lower:
+                p = entry / "book.json"
+                if p.exists():
+                    return p
+    return None
+
+
+@app.get("/api/parent/{category}/{child_name}")
+async def get_parent_data(category: str, child_name: str):
+    """
+    Универсальный поиск: достает файлы (biography, profile, basket и т.д.)
+    из папки LIVING_BOOK_APP/books/Имя_Ребенка/
+    """
+    # 1. Ищем папку ребенка (Женя, женя и т.д.)
+    child_dir = _find_child_folder(child_name) 
+    
+    if not child_dir:
+        raise HTTPException(404, f"Папка для {child_name} не найдена")
+
+    # 2. Формируем имя файла (например, biography.json)
+    target_file = child_dir / f"{category}.json"
+    
+    if target_file.exists():
+        print(f"✅ НАЙДЕНО: {category} для {child_name}")
+        return json.loads(target_file.read_text(encoding="utf-8"))
+    
+    print(f"❌ ФАЙЛ НЕ НАЙДЕН: {target_file}")
+    raise HTTPException(404, f"Файл {category}.json не найден в {child_dir}")
+
+# Вспомогательная функция (добавь её тоже, если Клод её не дал)
+def _find_child_folder(name: str):
+    if not BOOKS_DIR.exists(): return None
+    for d in BOOKS_DIR.iterdir():
+        if d.is_dir() and d.name.lower() == name.lower():
+            return d
+    return None
 
 # ─── ПЕРСОНАЛЬНАЯ СЦЕНА (быстрая генерация SET→Фабула) ──────────────────────
 
@@ -712,6 +742,27 @@ async def receive_beacon(batch: BeaconBatch):
     print(f"[МАЯК] Батч от {batch.device_id}: {len(batch.events)} событий")
     return {"ok": True, "received": len(batch.events)}
 
+@app.get("/api/beacon/stories/{child_name}")
+async def get_stories_for_child(child_name: str):
+    """Искорка забирает свои книги"""
+    safe_name = child_name.lower().replace(" ", "_")
+    stories_dir = BASE_DIR / "stories" / safe_name
+    
+    if not stories_dir.exists():
+        return []  # Нет новых книг
+    
+    stories = []
+    for pending_file in stories_dir.glob("*_pending.json"):
+        data = json.loads(pending_file.read_text(encoding="utf-8"))
+        stories.append({
+            "story_id": pending_file.stem.replace("_pending", ""),
+            "title": data.get("title", "Новая история"),
+            "created_at": datetime.fromtimestamp(pending_file.stat().st_mtime).isoformat(),
+            # ... другие поля
+        })
+    
+    # После отправки можно переместить в "delivered"
+    return stories
 
 # ─── СТАТИСТИКА ──────────────────────────────────────────────────────────────
 

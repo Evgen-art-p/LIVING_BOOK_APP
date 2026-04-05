@@ -132,10 +132,15 @@
 //  КОНФИГ
 // ════════════════════════════════════════════════════════════════════
 const DEV_MODE   = true;
-const SERVER_URL = 'http://127.0.0.1:8001';  // Маяк v4.0
-const CHILD_NAME = 'Женя';                    // Имя ребёнка (совпадает с books/)
+const SERVER_URL = 'http://127.0.0.1:8001';  // Маяк v4.0 — НЕ МЕНЯТЬ!
+const CHILD_NAME = 'Женя';                   // Имя ребёнка — строго как папка в books/
 const SESSION_ID = 'session_001';
-const BOOK_PATH  = '../books/Женя/'; 
+
+// Путь к книгам — через Маяк, а не напрямую!
+// ВНИМАНИЕ: плеер НЕ читает книги с диска, он просит их у Маяка
+const BOOKS_API_URL = `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}`; 
+// Добавить после SERVER_URL:
+const BOOK_PATH = `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}/`;
  
 
 // Цвета CSS для ui_pulse_color из пакета
@@ -331,33 +336,41 @@ const BookEngine = (() => {
     }
 
     async function init() {
-        book = await loadJSON(BOOK_PATH + 'book.json');
+        // Загружаем метаданные книги через API Маяка
+        const metaUrl = `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}/meta`;
+        const res = await fetch(metaUrl);
+        if (!res.ok) throw new Error(`Не удалось загрузить метаданные: ${res.status}`);
+        
+        book = await res.json();
+        
+        // Загружаем первую главу
         const firstChId = book.starting_chapter;
         await _loadChapter(firstChId);
-        console.log('[BookEngine] Книга:', book.title);
+        
+        console.log('[BookEngine] Книга загружена через Маяк:', book.title);
     }
 
     async function _loadChapter(chId) {
-    if (cache[chId]) return cache[chId]; // Если уже в памяти — не качаем заново
+    if (cache[chId]) return cache[chId];
     
-    const meta = book.chapters.find(c => c.id === chId);
-    if (!meta) throw new Error(`Глава не найдена в списке: ${chId}`); // Ошибка, если ID нет в book.json
+    // Загружаем главу через API Маяка
+    const chapterUrl = `${SERVER_URL}/api/beacon/stories/${encodeURIComponent(CHILD_NAME)}/chapters/${encodeURIComponent(chId)}`;
+    const res = await fetch(chapterUrl);
+    if (!res.ok) throw new Error(`Глава не найдена: ${chId}`);
     
-    // ПУТЬ: BOOK_PATH (../books/grondheim_01/) + meta.file (chapters/ch01_awakening.json)
-    const data = await loadJSON(BOOK_PATH + meta.file); 
-    
+    const data = await res.json();
     if (!data || !data.scenes) {
         throw new Error(`Файл главы ${chId} пуст или повреждён!`);
     }
-
-    // Индексируем сцены для быстрого поиска
+    
+    // Индексируем сцены
     data._index = {};
     for (const s of data.scenes) {
         if (s.scene_id) data._index[s.scene_id] = s;
     }
     
     cache[chId] = data;
-    console.log(`[BookEngine] Глава ${chId} успешно загружена!`);
+    console.log(`[BookEngine] Глава ${chId} загружена через Маяк`);
     return data;
 }
 

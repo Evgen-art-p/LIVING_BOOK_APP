@@ -1,10 +1,10 @@
 {
-  "id": "zhenya",
-  "name": "Женя",
-  "role": "Главный герой, переживающий потерю друга",
+  "id": "iskorka",
+  "name": "Искорка",
+  "role": "Хранительница воспоминаний, проводник",
   "voice": {
     "tts_model": "elevenlabs",
-    "voice_id": "placeholder_zhenya_voice_id",
+    "voice_id": "placeholder_iskorka_voice_id",
     "speed": 0.95,
     "pitch": "medium",
     "emotion_style": "MISSING: из A00 voice описание"

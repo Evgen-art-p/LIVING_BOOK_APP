@@ -1,26 +1,27 @@
 {
   "id": "ch01",
-  "title": "Начало Пути: Зов Имени",
+  "title": "MISSING: Название главы из A00/A03",
   "scenes": [
     {
-      "scene_id": "scene_01",
+      "id": "scene_01",
       "speaker": "zhenya",
-      "mode": "free_talk",
-      "context": "Женя только что узнал, что его имя — ключ к волшебному миру.",
-      "ai_instructions": "Поощряй Женю говорить о своем имени. Задавай вопросы. Не давай указаний.",
-      "max_turns": 5,
-      "on_end": "scene_01",
-      "intro_event": {
-        "speaker": "zhenya",
-        "text": "Привет, Женя! Ты чувствуешь этот лёгкий ветерок? Говорят, он приносит шёпот древних имён. Твоё имя тоже часть этого волшебства. Что ты думаешь об этом?",
-        "wait_for_user": true
-      },
-      "scripted_responses": {
-        "fallback": {
-          "reply_speaker": "zhenya",
-          "reply_text": "Я слышу тебя. Расскажи ещё."
+      "text": "MISSING: Вступительная реплика Жени из A00 story",
+      "audio": {
+        "foley": [],
+        "music": "MISSING: из A07",
+        "spatial": {
+          "speaker_position": {
+            "azimuth": 0,
+            "distance": 0
+          }
         }
-      }
+      },
+      "after_speech": "free_talk",
+      "mode": "free_talk",
+      "context": "MISSING: Описание ситуации для LLM из A04 диалоги",
+      "ai_instructions": "MISSING: Правила персонажа из A01 промпты",
+      "max_turns": 5,
+      "on_end": "end"
     }
   ]
 }

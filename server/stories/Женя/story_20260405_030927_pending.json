@@ -1,0 +1,135 @@
+{
+  "book.json": {
+    "id": "grondheim_book_01",
+    "title": "Сад Памяти",
+    "description": "История о мальчике Жене, который очень грустит по своему другу Пете. Ему помогает Искорка — хранительница воспоминаний. Вместе они отправляются в Сад Памяти, где каждое воспоминание о Пете превращается в сияющий Цветок Памяти. Женя учится бережно хранить эти цветы, понимая, что хотя Пети нет рядом, его дружба и светлые моменты остаются с ним навсегда.",
+    "age_group": "7-12",
+    "language": "ru",
+    "version": "1.0.0",
+    "created_by": "Six Fingers Studio",
+    "chapters": [
+      {
+        "id": "ch01",
+        "title": "MISSING: Название главы из A00/A03",
+        "file": "chapters/ch01.json"
+      }
+    ],
+    "characters": [
+      {
+        "id": "zhenya",
+        "file": "characters/zhenya.json"
+      },
+      {
+        "id": "iskorka",
+        "file": "characters/iskorka.json"
+      }
+    ],
+    "starting_chapter": "ch01",
+    "starting_scene": "scene_01"
+  },
+  "chapters/ch01.json": {
+    "id": "ch01",
+    "title": "MISSING: Название главы из A00/A03",
+    "scenes": [
+      {
+        "id": "scene_01",
+        "speaker": "zhenya",
+        "text": "MISSING: Вступительная реплика Жени из A00 story",
+        "audio": {
+          "foley": [],
+          "music": "MISSING: из A07",
+          "spatial": {
+            "speaker_position": {
+              "azimuth": 0,
+              "distance": 0
+            }
+          }
+        },
+        "after_speech": "free_talk",
+        "mode": "free_talk",
+        "context": "MISSING: Описание ситуации для LLM из A04 диалоги",
+        "ai_instructions": "MISSING: Правила персонажа из A01 промпты",
+        "max_turns": 5,
+        "on_end": "end"
+      }
+    ]
+  },
+  "characters/zhenya.json": {
+    "id": "zhenya",
+    "name": "Женя",
+    "role": "Главный герой, переживающий потерю друга",
+    "voice": {
+      "tts_model": "elevenlabs",
+      "voice_id": "placeholder_zhenya_voice_id",
+      "speed": 0.95,
+      "pitch": "medium",
+      "emotion_style": "MISSING: из A00 voice описание"
+    },
+    "personality": "MISSING: из A00 personality",
+    "system_prompt": "MISSING: из A01 промпт для free_talk",
+    "catchphrase": "MISSING: из A00"
+  },
+  "characters/iskorka.json": {
+    "id": "iskorka",
+    "name": "Искорка",
+    "role": "Хранительница воспоминаний, проводник",
+    "voice": {
+      "tts_model": "elevenlabs",
+      "voice_id": "placeholder_iskorka_voice_id",
+      "speed": 0.95,
+      "pitch": "medium",
+      "emotion_style": "MISSING: из A00 voice описание"
+    },
+    "personality": "MISSING: из A00 personality",
+    "system_prompt": "MISSING: из A01 промпт для free_talk",
+    "catchphrase": "MISSING: из A00"
+  },
+  "ethics.json": {
+    "forbidden_topics": [
+      "Игнорирование чувств потери",
+      "Обесценивание дружбы",
+      "Создание ложных надежд на возвращение",
+      "Чрезмерная сентиментальность или мрачность",
+      "Представление Пети как возвращающегося или исчезающего без следа",
+      "Заставлять Женю забыть о Пете"
+    ],
+    "forbidden_phrases": [
+      "ты должен",
+      "это плохо",
+      "так делать нельзя",
+      "не плачь",
+      "не бойся"
+    ],
+    "age_limits": {
+      "3-6": {
+        "max_session_minutes": 15,
+        "max_choices_per_scene": 2
+      },
+      "7-12": {
+        "max_session_minutes": 30,
+        "max_choices_per_scene": 3
+      },
+      "13+": {
+        "max_session_minutes": 45,
+        "max_choices_per_scene": 4
+      }
+    }
+  },
+  "config.json": {
+    "llm": {
+      "provider": "google",
+      "model": "gemini-2.5-flash",
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "max_tokens": 300
+    },
+    "stt": {
+      "model": "whisper-large-v3-turbo",
+      "language": "ru"
+    },
+    "tts": {
+      "provider": "elevenlabs",
+      "default_speed": 1.0
+    }
+  }
+}

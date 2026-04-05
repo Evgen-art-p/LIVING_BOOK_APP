@@ -4,7 +4,7 @@ echo 🚀 Запуск Грондхейма v4.0...
 
 :: 1. Запуск Маяка (Сервера)
 :: Переходим в папку server и запускаем питон
-start "ГРОНДХЕЙМ: МАЯК" cmd /k "cd /d %~dp0server && python beacon.py"
+start "ГРОНДХЕЙМ: МАЯК" cmd /k "cd /d %~dp0server && python beacon_v4.py"
 
 :: Ждем 3 секунды на прогрев
 timeout /t 3
