@@ -366,7 +366,7 @@ const BookEngine = (() => {
     // Индексируем сцены
     data._index = {};
     for (const s of data.scenes) {
-        const sid = s.scene_id || s.id; if (sid) { data._index[sid] = s; s.scene_id = sid; }
+        if (s.scene_id) data._index[s.scene_id] = s;
     }
     
     cache[chId] = data;
