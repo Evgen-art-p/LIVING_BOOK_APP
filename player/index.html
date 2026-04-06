@@ -35,7 +35,8 @@ canvas{position:absolute;top:0;left:0;touch-action:none}
 // КОНФИГ
 // ══════════════════════════════════════════════════
 const SERVER = 'http://127.0.0.1:8001';
-const CHILD  = 'Женя';
+const CHILD  = new URLSearchParams(location.search).get('child') || 'Женя';
+const UID    = new URLSearchParams(location.search).get('uid') || null; // §10: uid из URL
 const SID    = 'session_' + Date.now().toString(36);
 let autoListen = false;
 
@@ -70,40 +71,37 @@ const Mem = (() => {
 })();
 
 // ══════════════════════════════════════════════════
-// КНИГА (через /full или /meta+/chapters)
+// API HELPERS (uid v2 → fallback v1)
+// ══════════════════════════════════════════════════
+function apiMeta() {
+  if (UID) return `${SERVER}/api/beacon/uid/${UID}/meta`;
+  return `${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/meta`;
+}
+function apiChapter(id) {
+  if (UID) return `${SERVER}/api/beacon/uid/${UID}/chapters/${encodeURIComponent(id)}`;
+  return `${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/chapters/${encodeURIComponent(id)}`;
+}
+
+// ══════════════════════════════════════════════════
+// КНИГА
 // ══════════════════════════════════════════════════
 const Book = (() => {
   let book = null, chapters = {};
 
   async function init() {
-    // Пробуем /full (PROTOCOL §8 вопрос 1)
     try {
-      const r = await fetch(`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/full`, {signal: AbortSignal.timeout(5000)});
-      if (r.ok) {
-        const d = await r.json();
-        if (d.status === 'ok' && d.book) {
-          book = d.book;
-          if (d.first_chapter) { indexChapter(d.first_chapter); chapters[d.first_chapter.id] = d.first_chapter; }
-          console.log('[Book] /full OK:', book.title);
-          return;
-        }
-      }
-    } catch(e) { console.warn('[Book] /full failed, trying /meta...'); }
-
-    // Fallback: /meta + /chapters
-    try {
-      const r = await fetch(`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/meta`, {signal: AbortSignal.timeout(5000)});
+      const r = await fetch(apiMeta(), {signal: AbortSignal.timeout(5000)});
       if (!r.ok) throw new Error(r.status);
       book = await r.json();
       const ch = book.starting_chapter || 'ch01';
       await loadChapter(ch);
-      console.log('[Book] meta+chapter OK:', book.title);
+      console.log('[Book] OK:', book.title);
     } catch(e) { throw new Error('Маяк недоступен'); }
   }
 
   async function loadChapter(id) {
     if (chapters[id]) return chapters[id];
-    const r = await fetch(`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/chapters/${encodeURIComponent(id)}`);
+    const r = await fetch(apiChapter(id));
     if (!r.ok) return null;
     const d = await r.json();
     indexChapter(d);
@@ -179,27 +177,78 @@ function showCap(t){const e=document.getElementById('caption');e.textContent=t;e
 function hideCap(){document.getElementById('caption').style.opacity='0';}
 
 // ══════════════════════════════════════════════════
-// TTS + STT
+// TTS + STT (с WATCHDOG для Chrome)
 // ══════════════════════════════════════════════════
-let synthVoice=null, stt=null;
+let synthVoice=null, stt=null, speakWatchdog=null;
+
 function initTTS(){const l=()=>{synthVoice=speechSynthesis.getVoices().find(v=>v.lang==='ru-RU')||null;};speechSynthesis.onvoiceschanged=l;l();}
+
 function initSTT(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR)return;
   stt=new SR(); stt.lang='ru-RU'; stt.continuous=false; stt.interimResults=false;
   stt.onresult=e=>onSpoke(e.results[0][0].transcript.trim());
-  stt.onerror=e=>{if(e.error!=='no-speech')setState('idle');};
+  stt.onerror=e=>{if(e.error!=='no-speech'&&e.error!=='aborted')setState('idle');};
   stt.onend=()=>{if(state==='listening')setState('idle');};
 }
-function listen(){if(!stt||state!=='idle')return;try{stt.start();setState('listening');}catch(e){}}
 
-function speak(text,color,onDone){
-  if(!text){if(onDone)onDone();return;}
-  if(color)setColor(color);
-  setState('speaking'); showCap(text);
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='ru-RU';u.rate=.88;u.pitch=1.05;
-  if(synthVoice)u.voice=synthVoice;
-  u.onend=u.onerror=()=>{hideCap();if(onDone)onDone();else if(autoListen)setTimeout(listen,400);else setState('idle');};
+function listen(){
+  if(!stt||state!=='idle')return;
+  // Chrome bug: speechSynthesis может «зависнуть» — принудительно отменяем
+  speechSynthesis.cancel();
+  try{stt.start();setState('listening');}catch(e){console.warn('[STT]',e);}
+}
+
+function speak(text, color, onDone) {
+  if (!text) { if (onDone) onDone(); return; }
+  if (color) setColor(color);
+  setState('speaking');
+  showCap(text);
+
+  // Очищаем предыдущий watchdog
+  if (speakWatchdog) { clearTimeout(speakWatchdog); speakWatchdog = null; }
+
+  // Chrome bug fix: cancel any stuck utterances
+  speechSynthesis.cancel();
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ru-RU'; u.rate = 0.88; u.pitch = 1.05;
+  if (synthVoice) u.voice = synthVoice;
+
+  let finished = false;
+  function done() {
+    if (finished) return;
+    finished = true;
+    if (speakWatchdog) { clearTimeout(speakWatchdog); speakWatchdog = null; }
+    hideCap();
+    if (onDone) { onDone(); }
+    else if (autoListen) { setTimeout(listen, 400); }
+    else { setState('idle'); }
+  }
+
+  u.onend = done;
+  u.onerror = done;
+
+  // WATCHDOG: если onend не пришёл за расчётное время — принудительно завершаем
+  // Расчёт: ~5 символов/сек при rate=0.88, + 3 сек запас
+  const estimatedMs = Math.max(3000, (text.length / 5) * 1000 / 0.88 + 3000);
+  speakWatchdog = setTimeout(() => {
+    console.warn(`[TTS WATCHDOG] onend не сработал за ${Math.round(estimatedMs/1000)}с, принудительный done()`);
+    speechSynthesis.cancel();
+    done();
+  }, estimatedMs);
+
+  // Chrome bug fix: длинные тексты (>~200 символов) иногда зависают.
+  // Хак: периодически вызываем resume() чтобы не дать Chrome «заснуть»
+  if (text.length > 100) {
+    const keepAlive = setInterval(() => {
+      if (finished) { clearInterval(keepAlive); return; }
+      if (speechSynthesis.speaking && !speechSynthesis.paused) {
+        speechSynthesis.pause();
+        speechSynthesis.resume();
+      }
+    }, 5000);
+  }
+
   speechSynthesis.speak(u);
 }
 
@@ -225,6 +274,29 @@ async function playScene(scene){
 }
 
 async function goScene(scId){
+  // §11: Бесшовные переходы — on_end может быть объектом
+  if (typeof scId === 'object' && scId !== null) {
+    const action = scId.action || 'load_next_chapter';
+    if (action === 'load_next_chapter') {
+      const target = scId.target_chapter;
+      if (target) {
+        const ch = await Book.loadChapter(target);
+        if (ch) {
+          curCh = target;
+          const firstSc = Book.firstScene(target);
+          if (firstSc) { await Mem.setProgress(SID, target, firstSc.scene_id); playScene(firstSc); return; }
+        }
+        // §6.5 Пылесос 2.0: глава ещё не создана
+        speak('Эта страница ещё создаётся волшебством, загляни завтра!', 'gold');
+        return;
+      }
+    }
+    if (action === 'show_credits' || action === 'end') {
+      speak('Спасибо, что был со мной. До встречи в Грондхейме.', 'gold');
+      return;
+    }
+  }
+
   if(scId==='end'){speak('Спасибо, что был со мной. До встречи в Грондхейме.','gold');return;}
   const found=await Book.findScene(scId);
   if(found){curCh=found.chId;curScene=found.scene;await Mem.setProgress(SID,found.chId,scId);playScene(found.scene);}
@@ -283,14 +355,32 @@ async function onSpoke(text){
 
   // 4. LLM fallback через Маяк
   try{
-    const r=await fetch(`${SERVER}/api/free_talk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({child_text:text,scene_id:scene.scene_id||'unknown',chapter_id:curCh||'',child_name:CHILD,session_id:SID}),signal:AbortSignal.timeout(5000)});
+    const body = {child_text:text, scene_id:scene.scene_id||'unknown', chapter_id:curCh||'', child_name:CHILD, session_id:SID};
+    if (UID) body.uid = UID;
+    const r=await fetch(`${SERVER}/api/free_talk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(8000)});
     const d=await r.json();
-    if(d.text&&!d.blocked){speak(d.text,d.color||'cyan');const p=await Mem.getProgress(SID);const turns=(p?.t||0)+1;await Mem.setProgress(SID,curCh,scene.scene_id,turns);if(turns>=scene.max_turns)setTimeout(()=>goScene(scene.on_end||'end'),1500);return;}
+    if(d.text&&!d.blocked){
+      speak(d.text,d.color||'cyan');
+      const p=await Mem.getProgress(SID);
+      const turns=(p?.t||0)+1;
+      await Mem.setProgress(SID,curCh,scene.scene_id,turns);
+      if(turns>=scene.max_turns)setTimeout(()=>goScene(scene.on_end||'end'),1500);
+      return;
+    }
   }catch(e){console.warn('[LLM] offline');}
 
   // 5. Финальный fallback
   const fb=sr.fallback;
   speak(fb?.reply_text||'Я тебя слышу. Расскажи ещё.', fb?.ui_pulse_color||'cyan');
+}
+
+// ══════════════════════════════════════════════════
+// NIGHTBEACON (§12 — батч метрик)
+// ══════════════════════════════════════════════════
+const DEV_MODE = true; // В продакшне → false
+async function nightBeacon() {
+  if (DEV_MODE) { console.log('[NightBeacon] DEV_MODE — батч не отправлен'); return; }
+  // TODO: собрать события из IndexedDB и отправить POST /beacon с uid
 }
 
 // ══════════════════════════════════════════════════
