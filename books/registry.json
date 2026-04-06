@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-06T12:00:00",
+  "profiles": [
+    {
+      "uid": "LB-2026-04-05-0001",
+      "alias": "Женя",
+      "folder": "Женя",
+      "age_group": "7-12",
+      "created_at": "2026-04-05",
+      "last_activity": "2026-04-06T15:40:00",
+      "history_file": "biography.json",
+      "device_ids": [],
+      "status": "active"
+    }
+  ]
+}
