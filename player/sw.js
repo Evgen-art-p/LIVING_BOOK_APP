@@ -1,9 +1,9 @@
-// sw.js — Service Worker. Кэш для полного офлайн-режима.
+// sw.js — Service Worker v3. Кэш для офлайн-режима.
+// ФИКС: не кэшируем /api/ и POST-запросы.
 
-const CACHE     = 'iskra-fort-v2';
+const CACHE     = 'iskra-fort-v3';
 const BOOK_PATH = '../books/grondheim_01/';
 
-// Файлы которые кэшируем при установке
 const PRECACHE = [
     './',
     './index.html',
@@ -16,37 +16,31 @@ const PRECACHE = [
     BOOK_PATH + 'config.json',
 ];
 
-// Аудио-файлы кэшируем по мере запроса (стратегия cache-first)
 const AUDIO_EXTS = ['.mp3', '.ogg', '.wav'];
 
-// ─── Хелпер: безопасное добавление в кэш (игнорирует 404 и ошибки) ──────────
 async function safeCachePut(cache, request, response) {
     if (!response || response.status !== 200 || response.type === 'error') return;
     try {
         await cache.put(request, response);
     } catch (e) {
-        console.warn('[SW] Не удалось закэшировать:', request.url, e.message);
+        // Тихо проглатываем (POST, opaque и т.д.)
     }
 }
 
-// ─── Установка: кэшируем только то, что реально существует ──────────────────
 self.addEventListener('install', e => {
     e.waitUntil(
         caches.open(CACHE).then(async cache => {
-            const results = await Promise.allSettled(
+            await Promise.allSettled(
                 PRECACHE.map(url =>
                     fetch(new Request(url, { cache: 'reload' }))
                         .then(res => safeCachePut(cache, url, res))
-                        .catch(err => console.warn('[SW] Пропущен при установке:', url, err.message))
+                        .catch(() => {})
                 )
             );
-            const failed = results.filter(r => r.status === 'rejected').length;
-            if (failed > 0) console.warn(`[SW] Установка: ${failed} файл(ов) не закэшировано (норма если MP3 ещё не записаны)`);
         }).then(() => self.skipWaiting())
     );
 });
 
-// ─── Активация: чистим старые версии кэша ───────────────────────────────────
 self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys().then(keys =>
@@ -55,14 +49,15 @@ self.addEventListener('activate', e => {
     );
 });
 
-// ─── Перехват запросов ───────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
 
-    // Маяк — не кэшируем, нужна живая сеть
+    // ФИКС 3: НЕ кэшируем API и POST-запросы — пропускаем насквозь
+    if (e.request.method !== 'GET') return;
+    if (url.pathname.startsWith('/api/')) return;
     if (url.pathname.includes('/beacon')) return;
 
-    // Аудио — cache-first (один раз скачали и всё)
+    // Аудио — cache-first
     if (AUDIO_EXTS.some(ext => url.pathname.endsWith(ext))) {
         e.respondWith(
             caches.match(e.request).then(cached => {
@@ -75,17 +70,13 @@ self.addEventListener('fetch', e => {
                         }
                         return res;
                     })
-                    .catch(() => {
-                        // MP3 ещё не записан — тихо отдаём 404, движок уйдёт на TTS-фоллбэк
-                        console.warn('[SW] Аудио недоступно (TTS-фоллбэк):', url.pathname);
-                        return new Response('', { status: 404, statusText: 'Audio not recorded yet' });
-                    });
+                    .catch(() => new Response('', { status: 404, statusText: 'Audio not recorded yet' }));
             })
         );
         return;
     }
 
-    // Всё остальное — network-first, fallback на кэш
+    // Всё остальное (HTML, JSON книг) — network-first
     e.respondWith(
         fetch(e.request)
             .then(async res => {
