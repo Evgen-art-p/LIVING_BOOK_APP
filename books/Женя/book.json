@@ -1,28 +1,25 @@
 {
   "id": "grondheim_book_01",
   "title": "Сад Памяти",
-  "description": "История о мальчике Жене, который очень грустит по своему другу Пете. Ему помогает Искорка — хранительница воспоминаний. Вместе они отправляются в Сад Памяти, где каждое воспоминание о Пете превращается в сияющий Цветок Памяти. Женя учится бережно хранить эти цветы, понимая, что хотя Пети нет рядом, его дружба и светлые моменты остаются с ним навсегда.",
+  "description": "История о мальчике Жене, который грустит по своему другу Пете. Искорка помогает ему отправиться в Сад Памяти, где каждое воспоминание превращается в сияющий Цветок Памяти.",
   "age_group": "7-12",
   "language": "ru",
   "version": "1.0.0",
   "created_by": "Six Fingers Studio",
   "chapters": [
-    {
-      "id": "ch01",
-      "title": "MISSING: Название главы из A00/A03",
-      "file": "chapters/ch01.json"
-    }
+    { "id": "ch01", "title": "Тропинка к Саду", "file": "chapters/ch01.json" }
   ],
   "characters": [
-    {
-      "id": "zhenya",
-      "file": "characters/zhenya.json"
-    },
-    {
-      "id": "iskorka",
-      "file": "characters/iskorka.json"
-    }
+    { "id": "iskorka", "file": "characters/iskorka.json" }
   ],
   "starting_chapter": "ch01",
-  "starting_scene": "scene_01"
+  "starting_scene": "scene_01",
+  "global_intents": {
+    "emergency_stop": {
+      "keywords": ["помогите", "спасите", "мне плохо", "больно", "умереть"],
+      "action": "pause_game_until_adult",
+      "reply_text": "Я рядом. Сейчас позову взрослого.",
+      "notify_parent": true
+    }
+  }
 }

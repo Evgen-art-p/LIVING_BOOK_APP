@@ -42,7 +42,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="Живая Книга — Единый Сервер v5.0", version="5.0.0")
+app = FastAPI(title="Живая Книга — Единый Сервер v4.0", version="4.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -832,80 +832,6 @@ async def get_chapter(child_name: str, chapter_id: str):
     return data
 
 
-
-
-# ─── ИСКОРКА: полный пакет (book.json + первая глава) ────────────────────────
-
-@app.get("/api/beacon/stories/{child_name}/full")
-async def get_full_package(child_name: str):
-    """
-    Единый запрос: Искорка получает book.json + первую главу одним вызовом.
-    Убирает двойной запрос (meta + chapter) и риск рассинхронизации.
-    PROTOCOL.md §8 вопрос №1 — РЕШЕНО.
-    """
-    book_path = _find_book_path(child_name)
-    if not book_path or not book_path.exists():
-        # Принцип §6.1: если книги нет — не падаем, отдаём пустышку
-        return {
-            "book": None,
-            "first_chapter": None,
-            "status": "no_book",
-            "greeting": f"Привет! Я Искорка. Пока у меня нет истории для тебя, но я рядом."
-        }
-
-    book_dir = book_path.parent
-    book_data = json.loads(book_path.read_text(encoding="utf-8"))
-
-    # Загружаем первую главу
-    first_chapter = None
-    starting_ch = book_data.get("starting_chapter", "ch01")
-
-    # Ищем файл главы из chapters[]
-    chapter_file = None
-    for ch in book_data.get("chapters", []):
-        if ch.get("id") == starting_ch:
-            chapter_file = book_dir / ch.get("file", f"chapters/{starting_ch}.json")
-            break
-
-    if not chapter_file:
-        chapter_file = book_dir / "chapters" / f"{starting_ch}.json"
-
-    if chapter_file and chapter_file.exists():
-        first_chapter = json.loads(chapter_file.read_text(encoding="utf-8"))
-
-    print(f"[FULL] Отдаю полный пакет для '{child_name}': "
-          f"book='{book_data.get('title', '?')}', "
-          f"chapter={starting_ch}, "
-          f"scenes={len(first_chapter.get('scenes', [])) if first_chapter else 0}")
-
-    return {
-        "book": book_data,
-        "first_chapter": first_chapter,
-        "status": "ok"
-    }
-
-
-# ─── ИСКОРКА: корзинка подарков ──────────────────────────────────────────────
-
-@app.get("/api/beacon/stories/{child_name}/basket")
-async def get_gift_basket(child_name: str):
-    """
-    Отдаёт gift_baskets/latest.json для ребёнка.
-    PROTOCOL.md §8 вопрос №5 — РЕШЕНО.
-    """
-    child_dir = _find_child_folder(child_name)
-    if not child_dir:
-        raise HTTPException(404, f"Папка для '{child_name}' не найдена")
-
-    latest = child_dir / "gift_baskets" / "latest.json"
-    if not latest.exists():
-        return {"status": "no_basket", "basket": None}
-
-    data = json.loads(latest.read_text(encoding="utf-8"))
-    print(f"[BASKET] Отдаю корзинку для '{child_name}'")
-    return {"status": "ok", "basket": data}
-
-
 @app.get("/stats")
 def stats():
     with sqlite3.connect(BEACON_DB) as conn:
@@ -935,7 +861,7 @@ def health():
     
     return {
         "status": "ok",
-        "version": "5.0.0",
+        "version": "4.0.0",
         "model": OPENROUTER_MODEL,
         "api_key_set": bool(OPENROUTER_API_KEY),
         "studio_root": str(STUDIO_ROOT),
@@ -996,7 +922,7 @@ init_db()
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Живая Книга — Единый Сервер v5.0")
+    print("🚀 Живая Книга — Единый Сервер v4.0")
     print(f"🤖 Модель: {OPENROUTER_MODEL}")
     print(f"📚 Студия: {STUDIO_ROOT}")
     print(f"📖 Книги:  {BOOKS_DIR}")

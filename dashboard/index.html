@@ -1,207 +1,200 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Грондхейм | Кабинет Родителя</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Nunito', sans-serif; }
-        .glass { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
-        .orb-ring { animation: orb-pulse 3s ease-in-out infinite; }
-        .orb-core { animation: core-glow 2s ease-in-out infinite; }
-        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.06); opacity: 1; } }
-        @keyframes core-glow { 0%,100% { box-shadow: 0 0 16px rgba(99,102,241,0.5); } 50% { box-shadow: 0 0 32px rgba(99,102,241,0.9); } }
-        @keyframes bounce-live { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-        .live-badge { animation: bounce-live 1.5s infinite; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #6366f1; color: white; padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; z-index: 100; display: none; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
-        .toast.show { display: block; animation: toast-in 0.3s ease; }
-        @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Грондхейм — Кабинет Родителя</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a12;--card:#12121e;--border:#1e1e30;--accent:#00c8ff;--gold:#ffcc44;--text:#c8c8d8;--dim:#667;--danger:#ff4444}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh;min-height:100dvh}
+.nav{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);gap:12px}
+.nav h1{font-size:16px;font-weight:600;color:var(--accent);letter-spacing:1px}
+.nav .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);margin-left:auto}
+.nav .dot.on{background:#44ff88}
+.tabs{display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.tabs button{flex:1;padding:12px 8px;background:0 0;border:none;color:var(--dim);font-size:12px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;min-width:80px;white-space:nowrap}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.panel{display:none;padding:20px;max-width:600px;margin:0 auto}
+.panel.on{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.card h3{font-size:14px;color:var(--accent);margin-bottom:10px;font-weight:500}
+.card p{font-size:13px;line-height:1.7;color:var(--text)}
+.card .label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.card .value{font-size:15px;color:var(--text);margin-bottom:12px}
+input,textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:12px;font-family:inherit}
+textarea{min-height:80px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:10px;border:none;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:.5px;transition:all .2s;width:100%}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.pill{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;letter-spacing:.5px}
+.pill-ok{background:rgba(68,255,136,.1);color:#44ff88}
+.basket-item{padding:12px;border-bottom:1px solid var(--border)}
+.basket-item:last-child{border:none}
+.basket-item .q{font-size:13px;color:var(--gold);margin-bottom:4px}
+.basket-item .a{font-size:12px;color:var(--dim)}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg{text-align:center;padding:40px 20px;color:var(--dim);font-size:13px}
+</style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900">
-<div class="max-w-6xl mx-auto p-4 md:p-8">
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div>
-            <p class="text-[10px] font-bold tracking-[0.25em] text-indigo-400 uppercase mb-1">Шесть Пальцев Студия</p>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Кабинет Родителя</h1>
-            <p class="text-sm text-slate-400 italic">Фабрика Живых Книжек • Маяк v4.0</p>
-        </div>
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div class="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
-                <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center relative">
-                    <div class="orb-core w-4 h-4 rounded-full bg-indigo-500"></div>
-                </div>
-                <div>
-                    <div class="text-xs font-bold text-slate-700 leading-none" id="connection-label">Проверка...</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="connection-sub"></div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-100">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
-                <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Хронос</span>
-            </div>
-        </div>
-    </header>
-
-    <div class="flex gap-2 mb-6 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm w-fit">
-        <button onclick="switchTab('live')" id="btn-live" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">📡 Эфир</button>
-        <button onclick="switchTab('memory')" id="btn-memory" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📜 Память</button>
-        <button onclick="switchTab('stats')" id="btn-stats" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📊 Статистика</button>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
-            <!-- ЭФИР -->
-            <div class="tab-content active" id="tab-live">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800"><span class="text-indigo-400 text-lg">◈</span> Семантическое Зеркало</h2>
-                    <div class="flex flex-wrap gap-2 mb-6" id="semantic-tags"><span class="text-sm text-slate-400 italic">Нет данных — создайте первую историю</span></div>
-                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900 text-sm leading-relaxed" id="bridge-tip" style="display:none"><span class="font-bold mr-2">💡 Мостик в Реал:</span><span id="bridge-text"></span></div>
-                </section>
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800"><span class="text-rose-400 text-lg">◉</span> Статус</h2>
-                    <div id="feed"><div class="text-center py-10 text-slate-400 text-sm italic">Проверка связи с Маяком...</div></div>
-                </section>
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-base font-bold flex items-center gap-2 text-slate-800"><span>🧺</span> Тьютор Линк</h2>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Контекст дня</span>
-                    </div>
-                    <textarea id="tutor-input" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 p-4 rounded-2xl text-sm resize-none min-h-[80px] font-[Nunito]" placeholder="Опишите ситуацию: Женя боится темноты..."></textarea>
-                    <p class="text-xs text-indigo-600 font-semibold italic mt-2" id="tutor-current"></p>
-                    <button onclick="sendTutor()" class="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98] text-sm tracking-wide">Создать историю ✦</button>
-                </section>
-            </div>
-            <!-- ПАМЯТЬ -->
-            <div class="tab-content" id="tab-memory">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-1">Хроники Грондхейма</h2>
-                    <p class="text-sm text-slate-400 mb-6">Биография героя.</p>
-                    <div id="choices-list"><div class="text-center py-10 text-slate-400 text-sm italic">Загрузка...</div></div>
-                    <div class="flex flex-wrap gap-2 mt-6" id="memory-tags"></div>
-                </section>
-            </div>
-            <!-- СТАТИСТИКА -->
-            <div class="tab-content" id="tab-stats">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-6">Профиль ребёнка</h2>
-                    <div class="grid grid-cols-2 gap-4 mb-6" id="stats-grid"><div class="text-center py-10 text-slate-400 text-sm italic col-span-2">Загрузка...</div></div>
-                    <div id="artifacts-section"></div>
-                </section>
-            </div>
-        </div>
-        <!-- SIDEBAR -->
-        <div class="space-y-5">
-            <section class="bg-slate-900 text-white p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-                <div class="relative z-10"><h2 class="text-base font-bold mb-6 text-white">Границы Мира</h2><div class="space-y-4"><div class="flex justify-between items-center text-sm"><span class="text-slate-400">Сон</span><span class="text-indigo-400 font-bold">21:00 — 08:00</span></div><input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"></div></div>
-                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500 opacity-10 rounded-full blur-3xl"></div>
-            </section>
-            <button onclick="resetProgress()" class="w-full p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-all">⚠ Сброс (DEV)</button>
-            <div class="p-4 text-center"><p class="text-[10px] text-slate-400 uppercase tracking-widest leading-loose">Шесть Пальцев Студия<br>© 2026</p></div>
-        </div>
-    </div>
+<body>
+<nav class="nav">
+  <h1>⬡ Грондхейм</h1>
+  <span style="font-size:12px;color:var(--dim)">Кабинет Родителя</span>
+  <div class="dot" id="server-dot"></div>
+</nav>
+<div class="tabs">
+  <button class="on" data-tab="order">Заказать</button>
+  <button data-tab="profile">Профиль</button>
+  <button data-tab="basket">Корзинка</button>
+  <button data-tab="bio">Биография</button>
+  <button data-tab="status">Сервер</button>
 </div>
-<div class="toast" id="toast"></div>
+
+<div class="panel on" id="p-order">
+  <div class="card">
+    <h3>Новая история для ребёнка</h3>
+    <div class="label">Имя ребёнка</div>
+    <input id="f-name" value="Женя">
+    <div class="label">Возраст</div>
+    <select id="f-age"><option value="3-6">3–6 лет</option><option value="7-12" selected>7–12 лет</option><option value="13+">13+ лет</option></select>
+    <div class="label">О чём история? Что сейчас волнует ребёнка?</div>
+    <textarea id="f-task" placeholder="Например: Женя скучает по другу, который переехал в другой город"></textarea>
+    <button class="btn btn-primary" id="btn-gen" onclick="generate()">Создать историю</button>
+  </div>
+  <div id="gen-result"></div>
+</div>
+
+<div class="panel" id="p-profile"><div id="profile-c"><div class="spinner"></div></div></div>
+<div class="panel" id="p-basket"><div id="basket-c"><div class="spinner"></div></div></div>
+<div class="panel" id="p-bio"><div id="bio-c"><div class="spinner"></div></div></div>
+<div class="panel" id="p-status"><div id="status-c"><div class="spinner"></div></div></div>
 
 <script>
-const API = 'http://localhost:8001';
-const CHILD_NAME = 'Женя';
+const SERVER='http://127.0.0.1:8001';
+let CHILD='Женя';
 
-function switchTab(name) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-indigo-600','text-white','shadow-md','shadow-indigo-100'); b.classList.add('text-slate-500'); });
-    document.getElementById('tab-'+name).classList.add('active');
-    const btn = document.getElementById('btn-'+name);
-    btn.classList.remove('text-slate-500');
-    btn.classList.add('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
-    if (name==='live')  { checkHealth(); loadTutorBasket(); }
-    if (name==='memory') loadBiography();
-    if (name==='stats')  loadChildProfile();
-}
-function showToast(m) { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+// ТАБЫ
+document.querySelectorAll('.tabs button').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById('p-'+btn.dataset.tab).classList.add('on');
+    if(btn.dataset.tab==='profile')loadProfile();
+    if(btn.dataset.tab==='basket')loadBasket();
+    if(btn.dataset.tab==='bio')loadBio();
+    if(btn.dataset.tab==='status')loadStatus();
+  };
+});
 
-async function checkHealth() {
-    try {
-        const r = await fetch(`${API}/health`);
-        const h = await r.json();
-        document.getElementById('connection-label').textContent = 'Маяк v4.0';
-        document.getElementById('connection-sub').textContent = `${h.agents_available} агентов`;
-        document.getElementById('feed').innerHTML = `<div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><div class="text-3xl mb-3">🚀</div><p class="text-sm text-indigo-700 font-bold">Маяк подключён</p><p class="text-xs text-indigo-500 mt-1">Агентов: ${h.agents_available} | ${h.model}</p><p class="text-xs text-indigo-400 mt-3">Напишите задачу и нажмите «Создать историю»</p></div>`;
-    } catch(e) {
-        document.getElementById('connection-label').textContent = 'Нет связи';
-        document.getElementById('feed').innerHTML = '<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Маяк недоступен.<br><code class="text-xs">cd server && python beacon.py</code></div>';
-    }
-}
-
-async function sendTutor() {
-    const input = document.getElementById('tutor-input');
-    const msg = input.value.trim();
-    if (!msg) { showToast("Заполните задачу!"); return; }
-    showToast("Запускаю пайплайн... 2-5 мин.");
-    try {
-        const r = await fetch(`${API}/api/studio/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({child_name:CHILD_NAME,child_age:"7",task_context:msg}) });
-        if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e.detail||`Ошибка ${r.status}`); }
-        const d = await r.json();
-        showToast(`Готово! ${d.agents_completed} агентов.`);
-        input.value='';
-        loadChildProfile(); loadTutorBasket(); loadBiography();
-    } catch(e) { console.error(e); showToast(`Ошибка: ${e.message}`); }
+// ЗАКАЗ
+async function generate(){
+  const name=document.getElementById('f-name').value.trim();
+  const age=document.getElementById('f-age').value;
+  const task=document.getElementById('f-task').value.trim();
+  if(!name||!task){alert('Заполни имя и тему');return;}
+  CHILD=name;
+  const btn=document.getElementById('btn-gen');
+  const res=document.getElementById('gen-result');
+  btn.disabled=true;btn.textContent='Создаю…';
+  res.innerHTML='<div class="card"><div class="spinner"></div><p style="text-align:center;margin-top:12px">18 агентов работают. Это займёт 2–5 минут.</p></div>';
+  try{
+    const r=await fetch(`${SERVER}/api/studio/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({child_name:name,child_age:age,task_context:task})});
+    const d=await r.json();
+    if(d.ok){
+      res.innerHTML=`<div class="card"><h3>✅ История создана!</h3><p>Книга для <strong>${d.child_name}</strong> готова.</p><p style="margin-top:8px"><span class="pill pill-ok">${d.agents_completed} агентов отработали</span></p><p style="margin-top:12px">Откройте Искорку на устройстве ребёнка — история загрузится автоматически.</p></div>`;
+    }else{res.innerHTML=`<div class="card"><h3>⚠️ Ошибка</h3><p>${JSON.stringify(d)}</p></div>`;}
+  }catch(e){
+    res.innerHTML=`<div class="card"><h3>❌ Маяк недоступен</h3><p>Запустите сервер: <code style="font-size:11px">cd server && uvicorn beacon_v4:app --port 8001</code></p></div>`;
+  }
+  btn.disabled=false;btn.textContent='Создать историю';
 }
 
-async function loadChildProfile() {
-    try {
-        const r = await fetch(`${API}/api/parent/profile/${encodeURIComponent(CHILD_NAME)}`);
-        const d = await r.json();
-        if (d.error) { document.getElementById('stats-grid').innerHTML='<div class="col-span-2 text-center py-10 text-slate-400 text-sm italic">Профиль появится после первой истории.</div>'; return; }
-        const tagEl=document.getElementById('semantic-tags');
-        if (d.psychological_patterns?.length) tagEl.innerHTML=d.psychological_patterns.slice(0,8).map(p=>`<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">${(p.split(':')[0]||p)}</span>`).join('');
-        document.getElementById('stats-grid').innerHTML=[{l:'Сессии',v:d.total_sessions||0,i:'🕯'},{l:'Выборы',v:d.total_choices_made||0,i:'🔀'},{l:'Паттерны',v:(d.psychological_patterns||[]).length,i:'🧠'},{l:'Персонажи',v:Object.keys(d.character_bonds||{}).length,i:'👥'}].map(s=>`<div class="p-6 rounded-2xl border border-slate-100 bg-slate-50 text-center"><div class="text-3xl mb-2">${s.i}</div><div class="text-3xl font-bold text-slate-800">${s.v}</div><div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.l}</div></div>`).join('');
-        const a=document.getElementById('artifacts-section'); a.innerHTML='';
-        if (d.growth_zones?.length) a.innerHTML=`<div class="mt-6"><h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Зоны роста</h3>${d.growth_zones.slice(0,5).map(z=>`<div class="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 mb-2"><span class="text-xl">🌱</span><span class="text-sm font-semibold text-emerald-800">${(z.split(':')[0]||z)}</span></div>`).join('')}</div>`;
-    } catch(e) { document.getElementById('stats-grid').innerHTML='<div class="col-span-2 p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен</div>'; }
+// ПРОФИЛЬ
+async function loadProfile(){
+  const el=document.getElementById('profile-c');
+  try{
+    const r=await fetch(`${SERVER}/api/parent/child_profile/${encodeURIComponent(CHILD)}`);
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    el.innerHTML=`
+      <div class="card"><h3>Профиль: ${d.child_name||CHILD}</h3>
+        <div class="label">Всего сессий</div><div class="value">${d.total_sessions||0}</div>
+        <div class="label">Всего выборов</div><div class="value">${d.total_choices_made||0}</div></div>
+      <div class="card"><h3>Психологические паттерны</h3>
+        ${(d.psychological_patterns||[]).map(p=>`<p>• ${p}</p>`).join('')||'<p class="msg">Пока нет данных</p>'}</div>
+      <div class="card"><h3>Зоны роста</h3>
+        ${(d.growth_zones||[]).map(z=>`<p>• ${z}</p>`).join('')||'<p class="msg">Пока нет данных</p>'}</div>`;
+  }catch(e){el.innerHTML=`<div class="msg">Профиль появится после первой истории для ${CHILD}.</div>`;}
 }
 
-async function loadTutorBasket() {
-    try {
-        const r = await fetch(`${API}/api/parent/basket/${encodeURIComponent(CHILD_NAME)}`);
-        const d = await r.json();
-        if (d.error) return;
-        if (d.bridge_to_reality) {
-            document.getElementById('bridge-tip').style.display='block';
-            const s=d.bridge_to_reality.conversation_starters||[];
-            if (s.length) document.getElementById('bridge-text').innerHTML=`<strong>Спроси ${CHILD_NAME}:</strong> ${s[0]}`;
-            const a=d.bridge_to_reality.activities||[];
-            if (a.length) document.getElementById('tutor-current').textContent=`💡 ${a[0]}`;
-        }
-    } catch(e) {}
+// КОРЗИНКА
+async function loadBasket(){
+  const el=document.getElementById('basket-c');
+  try{
+    let d;
+    try{const r=await fetch(`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/basket`);if(r.ok){const j=await r.json();d=j.basket;}}catch(e){}
+    if(!d){const r=await fetch(`${SERVER}/api/parent/gift_baskets/${encodeURIComponent(CHILD)}`);if(r.ok)d=await r.json();}
+    if(!d)throw 0;
+    el.innerHTML=`
+      <div class="card"><h3>🎁 Корзинка Даров</h3>
+        <div class="label">Тема</div><div class="value">${d.story_theme||d.task_context||'—'}</div>
+        <div class="label">Дата</div><div class="value">${d.date?new Date(d.date).toLocaleDateString('ru'):'—'}</div></div>
+      <div class="card"><h3>Инсайты для вас</h3>
+        ${(d.parent_insights||[]).map(i=>`<p>• ${i}</p>`).join('')||'<p class="msg">Пока нет инсайтов</p>'}</div>
+      <div class="card"><h3>Мостик в реальную жизнь</h3>
+        <div class="label">Начните разговор с</div>
+        ${(d.bridge_to_reality?.conversation_starters||[]).map(s=>`<div class="basket-item"><div class="q">💬 ${s}</div></div>`).join('')}
+        <div class="label" style="margin-top:12px">Совместные активности</div>
+        ${(d.bridge_to_reality?.activities||[]).map(a=>`<div class="basket-item"><div class="a">🎨 ${a}</div></div>`).join('')}</div>
+      <div class="card"><h3>Следующая тема</h3><p>${d.next_story_hints?.suggested_theme||'Пока нет рекомендации'}</p></div>`;
+  }catch(e){el.innerHTML=`<div class="msg">Корзинка появится после первой истории.</div>`;}
 }
 
-async function loadBiography() {
-    try {
-        const r = await fetch(`${API}/api/parent/biography/${encodeURIComponent(CHILD_NAME)}`);
-        const d = await r.json();
-        const list=document.getElementById('choices-list');
-        if (d.error||!d.karmic_trail?.length) { list.innerHTML='<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>'; return; }
-        let h=`<div class="flex gap-3 mb-6"><div class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">📚 ${d.total_stories||0} историй</div><div class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-bold border border-violet-100">👥 ${Object.keys(d.character_bonds||{}).length} персонажей</div></div>`;
-        h+=d.karmic_trail.slice().reverse().map(t=>`<div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white mb-3 shadow-sm"><div class="text-xl">📜</div><div class="flex-1"><p class="text-sm text-slate-700 font-bold">${t.theme||'Глава'}</p><p class="text-xs text-slate-500 mt-1">${t.task_context||t.emotional_goal||''}</p><div class="flex flex-wrap gap-1 mt-2">${(t.characters_met||[]).map(c=>`<span class="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-500 rounded-lg border border-violet-100">${c}</span>`).join('')}</div><p class="text-[10px] text-slate-400 mt-2">${t.date?new Date(t.date).toLocaleDateString('ru'):''}</p></div></div>`).join('');
-        list.innerHTML=h;
-        const tags=document.getElementById('memory-tags');
-        if (d.character_bonds) tags.innerHTML=Object.entries(d.character_bonds).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100">👤 ${c} (×${n})</span>`).join('');
-    } catch(e) { document.getElementById('choices-list').innerHTML='<div class="p-4 bg-red-50 text-red-600 rounded-2xl text-sm">Сервер недоступен</div>'; }
+// БИОГРАФИЯ
+async function loadBio(){
+  const el=document.getElementById('bio-c');
+  try{
+    const r=await fetch(`${SERVER}/api/parent/biography/${encodeURIComponent(CHILD)}`);
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    el.innerHTML=`
+      <div class="card"><h3>Биография: ${d.child_name||CHILD}</h3>
+        <div class="label">Всего историй</div><div class="value">${d.total_stories||0}</div></div>
+      <div class="card"><h3>Связи с персонажами</h3>
+        ${Object.entries(d.character_bonds||{}).map(([k,v])=>`<p>${k}: <strong>${v} встреч</strong></p>`).join('')||'<p class="msg">Пока нет встреч</p>'}</div>
+      <div class="card"><h3>Последние следы</h3>
+        ${(d.karmic_trail||[]).slice(-5).reverse().map(t=>`<div class="basket-item"><div class="q">${t.theme||'—'} — ${t.emotional_goal||''}</div><div class="a">${new Date(t.date).toLocaleDateString('ru')} · ${(t.characters_met||[]).join(', ')||'—'}</div></div>`).join('')||'<p class="msg">Пока нет историй</p>'}</div>`;
+  }catch(e){el.innerHTML=`<div class="msg">Биография появится после первой истории.</div>`;}
 }
 
-function resetProgress() { if (!confirm('Сбросить прогресс?')) return; indexedDB.deleteDatabase('iskra_fort').onsuccess=()=>showToast('Сброшено'); }
+// СТАТУС
+async function loadStatus(){
+  const el=document.getElementById('status-c');
+  try{
+    const[health,stats]=await Promise.all([fetch(`${SERVER}/health`).then(r=>r.json()),fetch(`${SERVER}/stats`).then(r=>r.json())]);
+    document.getElementById('server-dot').classList.add('on');
+    el.innerHTML=`
+      <div class="card"><h3>Маяк</h3>
+        <div class="label">Статус</div><div class="value"><span class="pill pill-ok">${health.status}</span> v${health.version}</div>
+        <div class="label">Модель</div><div class="value">${health.model}</div>
+        <div class="label">API ключ</div><div class="value">${health.api_key_set?'✅ Установлен':'❌ Нет'}</div>
+        <div class="label">Агентов</div><div class="value">${health.agents_available}</div></div>
+      <div class="card"><h3>Статистика</h3>
+        <div class="label">Устройств</div><div class="value">${stats.total_devices}</div>
+        <div class="label">Синхронизаций</div><div class="value">${stats.total_syncs}</div>
+        <div class="label">Книг создано</div><div class="value">${stats.total_generated_books}</div></div>`;
+  }catch(e){
+    document.getElementById('server-dot').classList.remove('on');
+    el.innerHTML=`<div class="msg">Маяк недоступен.<br><br><code style="font-size:11px;color:var(--dim)">cd server && uvicorn beacon_v4:app --port 8001</code></div>`;
+  }
+}
 
-checkHealth();
-loadTutorBasket();
-setInterval(checkHealth, 15000);
+// АВТОПРОВЕРКА
+fetch(`${SERVER}/health`).then(()=>document.getElementById('server-dot').classList.add('on')).catch(()=>{});
 </script>
 </body>
 </html>
