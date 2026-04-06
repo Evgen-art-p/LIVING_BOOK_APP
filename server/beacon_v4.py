@@ -829,7 +829,7 @@ async def generate_book(req: GenerateRequest):
         "child_name": req.child_name,
         "book_dir": str(book_dir) if book_dir else None,
         "agents_completed": len([r for r in results.values() if not (isinstance(r, dict) and r.get("status") == "stub")]),
-        "agents_stubbed": len([r for r in results.values() if isinstance(r, dict) and r.get("status") == "stub")]),
+        "agents_stubbed": len([r for r in results.values() if isinstance(r, dict) and r.get("status") == "stub"]),
         "package_files": list(package.keys()) if package else [],
         "master_brief": master_brief,
     }
