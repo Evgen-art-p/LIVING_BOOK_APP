@@ -2,555 +2,859 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Грондхейм | Кабинет Родителя</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Грондхейм | Кабинет Родителя — Живая Книга v6.2</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <style>
-        body { font-family: 'Nunito', sans-serif; }
+        * { font-family: 'Nunito', sans-serif; }
+        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.08); opacity: 1; } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-red { 0%,100% { background-color: rgba(239,68,68,0.1); } 50% { background-color: rgba(239,68,68,0.3); } }
+        @keyframes highlight-flash { 0% { background-color: #c7d2fe; transform: scale(1); } 50% { background-color: #818cf8; transform: scale(1.02); } 100% { background-color: #c7d2fe; transform: scale(1); } }
+        
         .orb-ring { animation: orb-pulse 3s ease-in-out infinite; }
-        .orb-core { animation: core-glow 2s ease-in-out infinite; }
-        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.06); opacity: 1; } }
-        @keyframes core-glow { 0%,100% { box-shadow: 0 0 16px rgba(99,102,241,0.5); } 50% { box-shadow: 0 0 32px rgba(99,102,241,0.9); } }
-        .tab-content { display: none; }
+        .tab-content { display: none; animation: slide-up 0.3s ease; }
         .tab-content.active { display: block; }
-        .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #6366f1; color: white; padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; z-index: 100; display: none; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
-        .toast.show { display: block; animation: toast-in 0.3s ease; }
-        @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 600; z-index: 1000; display: none; white-space: nowrap; }
+        .toast.show { display: block; animation: slide-up 0.2s ease; }
+        .profile-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 260px; background: white; border-radius: 20px; box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s ease; z-index: 100; }
+        .profile-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .loader { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Стили для подсветки события в памяти */
+        .memory-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .memory-item.highlight {
+            animation: highlight-flash 0.6s ease;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-left: 4px solid #6366f1;
+        }
+        .memory-item:hover {
+            transform: translateX(4px);
+            background: #f8fafc;
+        }
+        
+        /* Кастомный курсор для точек графика */
+        canvas {
+            cursor: pointer;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900">
-<div class="max-w-6xl mx-auto p-4 md:p-8">
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
 
-    <!-- ═══ HEADER ═══ -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+<div class="max-w-7xl mx-auto p-4 md:p-6">
+
+    <!-- HEADER (без изменений) -->
+    <header class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-slate-100 p-5 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-4 z-50">
         <div>
-            <p class="text-[10px] font-bold tracking-[0.25em] text-indigo-400 uppercase mb-1">Шесть Пальцев Студия</p>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Кабинет Родителя</h1>
-            <p class="text-sm text-slate-400 italic">Фабрика Живых Книжек • Маяк v5.0</p>
+            <p class="text-[10px] font-black tracking-[0.3em] text-indigo-400 uppercase mb-1">Six Fingers Studio</p>
+            <h1 class="text-2xl font-black tracking-tight text-slate-900">Кабинет Родителя</h1>
+            <p class="text-sm text-slate-400 font-medium">Живая Книга • Протокол v6.2 • Артефакты и Мостики</p>
         </div>
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <!-- uid-селектор -->
-            <div class="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100" id="child-selector-wrap">
-                <span class="text-lg">👤</span>
-                <select id="child-selector" class="bg-transparent border-none text-sm font-bold text-slate-700 focus:outline-none cursor-pointer pr-2">
-                    <option value="">Загрузка…</option>
-                </select>
-            </div>
-            <!-- Маяк-орб -->
-            <div class="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
-                <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center relative">
-                    <div class="orb-core w-4 h-4 rounded-full bg-indigo-500" id="orb-core"></div>
+        
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+                <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center">
+                    <div class="w-4 h-4 rounded-full bg-indigo-500" id="orb-core"></div>
                 </div>
                 <div>
-                    <div class="text-xs font-bold text-slate-700 leading-none" id="connection-label">Проверка…</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="connection-sub"></div>
+                    <div class="text-xs font-black text-slate-700" id="connection-label">Проверка...</div>
+                    <div class="text-[9px] text-slate-400" id="connection-sub"></div>
                 </div>
             </div>
-            <!-- Хронос -->
-            <div class="flex items-center gap-2 bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-100">
-                <span class="relative flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span>
-                <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Хронос</span>
+            
+            <div class="relative" id="parent-profile-wrap">
+                <button onclick="toggleParentMenu()" class="flex items-center gap-3 group">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-bold text-slate-800" id="parent-name">Елена</p>
+                        <p class="text-[10px] text-green-600">● Маяк активен</p>
+                    </div>
+                    <div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white shadow-md flex items-center justify-center text-white">
+                        <span class="text-lg">👩</span>
+                    </div>
+                </button>
+                <div class="profile-dropdown" id="parent-dropdown">
+                    <div class="p-4 border-b border-slate-100">
+                        <p class="font-bold text-slate-800" id="dropdown-parent-name">Елена</p>
+                        <p class="text-xs text-slate-400">Родитель</p>
+                    </div>
+                    <div class="p-2">
+                        <button onclick="showToast('Функция в разработке')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50">✏️ Редактировать</button>
+                        <hr class="my-2 border-slate-100">
+                        <button onclick="logoutParent()" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50">🚪 Выйти</button>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- ═══ TABS ═══ -->
-    <div class="flex gap-2 mb-6 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm w-fit">
-        <button onclick="switchTab('live')" id="btn-live" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all bg-indigo-600 text-white shadow-md shadow-indigo-100">📡 Эфир</button>
-        <button onclick="switchTab('memory')" id="btn-memory" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📜 Память</button>
-        <button onclick="switchTab('stats')" id="btn-stats" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">📊 Статистика</button>
-        <button onclick="switchTab('server')" id="btn-server" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all text-slate-500">🛠 Сервер</button>
+    <!-- TABS -->
+    <div class="flex flex-wrap gap-2 mb-6 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-100 sticky top-24 z-40">
+        <button onclick="switchTab('children')" id="btn-children" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black bg-indigo-600 text-white shadow-md">👥 Дети</button>
+        <button onclick="switchTab('baskets')" id="btn-baskets" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🎁 Корзины</button>
+        <button onclick="switchTab('artifacts')" id="btn-artifacts" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">✨ Артефакты</button>
+        <button onclick="switchTab('bridges')" id="btn-bridges" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🌉 Мостики</button>
+        <button onclick="switchTab('memory')" id="btn-memory" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📜 Память</button>
+        <button onclick="switchTab('stats')" id="btn-stats" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📊 Статистика</button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- ═══ MAIN COLUMN ═══ -->
-        <div class="lg:col-span-2 space-y-6">
-
-            <!-- ─── TAB: ЭФИР ─── -->
-            <div class="tab-content active" id="tab-live">
-                <!-- Семантическое Зеркало -->
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 mb-6">
-                    <h2 class="text-base font-bold mb-5 flex items-center gap-2 text-slate-800">
-                        <span class="text-indigo-400 text-lg">◈</span> Семантическое Зеркало
-                    </h2>
-                    <div class="flex flex-wrap gap-2 mb-6" id="semantic-tags">
-                        <span class="text-sm text-slate-400 italic">Нет данных — создайте первую историю</span>
-                    </div>
-                    <div class="p-5 bg-amber-50 rounded-2xl border border-amber-100 text-amber-900 text-sm leading-relaxed" id="bridge-tip" style="display:none">
-                        <span class="font-bold mr-2">💡 Мостик в Реал:</span><span id="bridge-text"></span>
-                    </div>
-                </section>
-
-                <!-- Тьютор Линк (Заказ) -->
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 mb-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-base font-bold flex items-center gap-2 text-slate-800">
-                            <span>🧺</span> Тьютор Линк
-                        </h2>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Новая история</span>
-                    </div>
-                    <textarea id="tutor-input" class="w-full bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 p-4 rounded-2xl text-sm resize-none min-h-[80px] font-[Nunito]" placeholder="Опишите ситуацию: Женя боится темноты, скучает по другу..."></textarea>
-                    <p class="text-xs text-indigo-600 font-semibold italic mt-2" id="tutor-hint"></p>
-                    <button onclick="sendOrder()" id="btn-order" class="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-[0.98] text-sm tracking-wide">
-                        Создать историю ✦
-                    </button>
-                    <div id="order-result" class="mt-4"></div>
-                </section>
-            </div>
-
-            <!-- ─── TAB: ПАМЯТЬ ─── -->
-            <div class="tab-content" id="tab-memory">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-1">Хроники Грондхейма</h2>
-                    <p class="text-sm text-slate-400 mb-6">Биография героя • Историческая Память</p>
-                    <div id="bio-list"><div class="text-center py-10 text-slate-400 text-sm italic">Загрузка…</div></div>
-                    <div class="flex flex-wrap gap-2 mt-6" id="memory-tags"></div>
-                </section>
-            </div>
-
-            <!-- ─── TAB: СТАТИСТИКА ─── -->
-            <div class="tab-content" id="tab-stats">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-6">Профиль ребёнка</h2>
-                    <div class="grid grid-cols-2 gap-4 mb-6" id="stats-grid">
-                        <div class="text-center py-10 text-slate-400 text-sm italic col-span-2">Загрузка…</div>
-                    </div>
-                    <div id="growth-section"></div>
-                </section>
-            </div>
-
-            <!-- ─── TAB: СЕРВЕР ─── -->
-            <div class="tab-content" id="tab-server">
-                <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-900 mb-6">Маяк • Статус</h2>
-                    <div id="server-info"><div class="text-center py-10 text-slate-400 text-sm italic">Загрузка…</div></div>
-                </section>
+    <!-- ==================== TAB: ДЕТИ (без изменений) ==================== -->
+    <div class="tab-content active" id="tab-children">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">👥 <span>Выбор профиля</span></h2>
+            <select id="child-selector" class="w-full md:w-96 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-lg font-bold">
+                <option value="">Загрузка...</option>
+            </select>
+            <div class="mt-4 p-4 bg-indigo-50 rounded-2xl" id="child-info">
+                <p class="text-sm text-indigo-600">Выберите ребёнка, чтобы увидеть его данные</p>
             </div>
         </div>
+        
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">➕ <span>Добавить ребёнка</span></h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="new-child-name" placeholder="Имя ребёнка" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <select id="new-child-age" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                    <option value="2-4">2-4 года</option>
+                    <option value="3-6">3-6 лет</option>
+                    <option value="5-9">5-9 лет</option>
+                    <option value="7-12" selected>7-12 лет</option>
+                    <option value="13+">13+ лет</option>
+                </select>
+                <button onclick="addChild()" class="bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition">➕ Добавить</button>
+            </div>
+            <div id="add-child-result" class="mt-4"></div>
+        </div>
+    </div>
 
-        <!-- ═══ SIDEBAR ═══ -->
-        <div class="space-y-5">
-            <!-- Корзинка Даров -->
-            <section class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                <div class="flex justify-between items-center mb-5">
-                    <h2 class="text-base font-bold flex items-center gap-2 text-slate-800"><span>🎁</span> Корзинка Даров</h2>
-                </div>
-                <div id="basket-content">
-                    <div class="text-center py-6 text-slate-400 text-sm italic">Появится после первой истории</div>
-                </div>
-            </section>
+    <!-- ==================== TAB: КОРЗИНЫ (без изменений) ==================== -->
+    <div class="tab-content" id="tab-baskets">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">🎁 <span>Создать корзину даров</span></h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="basket-title" placeholder="Название / проблема" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <textarea id="basket-description" rows="2" placeholder="Описание ситуации" class="bg-slate-50 border border-slate-200 rounded-2xl p-3 resize-none"></textarea>
+                <input type="text" id="basket-parent-goal" placeholder="Цель родителя" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <select id="basket-emotion" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                    <option value="anger">😠 Гнев</option>
+                    <option value="fear">😨 Страх</option>
+                    <option value="sadness">😢 Грусть</option>
+                    <option value="joy">😊 Радость</option>
+                    <option value="curiosity">🤔 Любопытство</option>
+                </select>
+            </div>
+            <button onclick="createBasket()" class="mt-4 w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition">✦ Создать корзину ✦</button>
+            <div id="basket-result" class="mt-4"></div>
+        </div>
+        
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4">Активные корзины</h2>
+            <div id="active-baskets-list" class="space-y-3"></div>
+            
+            <h3 class="text-lg font-black mt-6 mb-3">Завершённые</h3>
+            <div id="completed-baskets-list" class="space-y-2"></div>
+        </div>
+    </div>
 
-            <!-- Границы Мира -->
-            <section class="bg-slate-900 text-white p-8 rounded-[2rem] shadow-2xl relative overflow-hidden">
-                <div class="relative z-10">
-                    <h2 class="text-base font-bold mb-6 text-white">Границы Мира</h2>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center text-sm">
-                            <span class="text-slate-400">Сон</span>
-                            <span class="text-indigo-400 font-bold">21:00 — 08:00</span>
-                        </div>
-                        <input type="range" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-                        <p class="text-[10px] text-slate-500 leading-relaxed uppercase tracking-wider">
-                            В это время Искорка уходит в Гавань и не реагирует на внешние стимулы.
-                        </p>
-                    </div>
-                </div>
-                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500 opacity-10 rounded-full blur-3xl"></div>
-            </section>
-
-            <!-- Связь с Локой -->
-            <button class="w-full p-6 bg-pink-50 text-pink-600 rounded-[2rem] border border-pink-100 flex items-center justify-between hover:bg-pink-100 transition-all group border-b-4 border-pink-200 active:border-b-0">
-                <div class="flex items-center gap-4 text-left">
-                    <span class="text-3xl animate-bounce">☁️</span>
-                    <div>
-                        <p class="font-bold text-pink-700 leading-none">Связь с Локой</p>
-                        <p class="text-[10px] text-pink-500 uppercase mt-1 tracking-widest font-bold">Поддержка Студии</p>
-                    </div>
-                </div>
-                <span class="text-xl group-hover:translate-x-2 transition-transform">→</span>
-            </button>
-
-            <!-- DEV: Сброс -->
-            <button onclick="resetProgress()" class="w-full p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-xs font-bold uppercase tracking-widest hover:bg-red-100 transition-all">
-                ⚠ Сброс прогресса (DEV)
-            </button>
-
-            <!-- Футер -->
-            <div class="p-4 text-center">
-                <p class="text-[10px] text-slate-400 uppercase tracking-widest leading-loose">
-                    Шесть Пальцев Студия<br>© 2026 Грондхейм Протокол v2.0
-                </p>
+    <!-- ==================== TAB: АРТЕФАКТЫ (без изменений) ==================== -->
+    <div class="tab-content" id="tab-artifacts">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">✨ <span>Коллекция артефактов</span></h2>
+            <div id="artifacts-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center py-10 text-slate-400 italic col-span-4">Выберите ребёнка</div>
+            </div>
+            <div class="mt-4 p-4 bg-amber-50 rounded-2xl">
+                <p class="text-sm text-amber-700 font-bold">💡 Артефакты — это награды, которые ребёнок получает в приключениях. Они навсегда остаются в коллекции.</p>
             </div>
         </div>
+    </div>
+
+    <!-- ==================== TAB: МОСТИКИ (без изменений) ==================== -->
+    <div class="tab-content" id="tab-bridges">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">🌉 <span>Мостики в реальность</span></h2>
+            <p class="text-sm text-slate-500 mb-4">Задания, которые ребёнок выполняет вместе с вами. После подтверждения ребёнок получает карму.</p>
+            <div id="pending-bridges-list" class="space-y-3"></div>
+            <div id="completed-bridges-list" class="mt-6 space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: ПАМЯТЬ (ОБНОВЛЁН — подсветка кликов) ==================== -->
+    <div class="tab-content" id="tab-memory">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">📜 <span>Биография героя</span></h2>
+            <div id="karma-display" class="mb-4 p-4 bg-indigo-50 rounded-2xl flex justify-between items-center">
+                <span class="font-bold">🌟 Текущая карма</span>
+                <span class="text-2xl font-black text-indigo-600" id="karma-value">0</span>
+            </div>
+            
+            <!-- НОВЫЙ ГРАФИК КАРМЫ -->
+            <div class="mb-6">
+                <h3 class="font-bold text-slate-700 mb-3">📈 Динамика кармы</h3>
+                <div class="bg-white p-4 rounded-2xl border border-slate-100">
+                    <canvas id="karma-canvas" height="200" style="max-height: 280px; width: 100%; cursor: pointer;"></canvas>
+                    <p class="text-[10px] text-slate-400 text-center mt-3">✨ Кликните на точку — увидите событие в ленте ниже</p>
+                </div>
+            </div>
+            
+            <!-- ЛЕНТА ПАМЯТИ (с id для подсветки) -->
+            <h3 class="font-bold text-slate-700 mb-3">📖 Хроники</h3>
+            <div id="memory-timeline" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: СТАТИСТИКА ==================== -->
+    <div class="tab-content" id="tab-stats">
+        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h2 class="text-xl font-black mb-4">📊 Статистика</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="stats-metrics"></div>
+            <div class="h-64">
+                <canvas id="karma-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="fixed bottom-6 right-6 z-50">
+        <button onclick="refreshAll()" class="w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition flex items-center justify-center text-2xl">⟳</button>
     </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+// ============================================================
+//  ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================================
 const API = 'http://127.0.0.1:8001';
-
-// ─── СОСТОЯНИЕ ─────────────────────────────────────────────
 let CURRENT_UID = null;
-let CURRENT_ALIAS = 'Женя';
+let CURRENT_ALIAS = null;
 let REGISTRY = null;
+let karmaChart = null;
+let karmaTrendChart = null;  // для нового графика в tab-memory
+let currentKarmaHistory = []; // храним для кликов
 
-// ─── ТАБЫ ──────────────────────────────────────────────────
-function switchTab(name) {
+// ============================================================
+//  УТИЛИТЫ
+// ============================================================
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function toggleParentMenu() {
+    document.getElementById('parent-dropdown').classList.toggle('show');
+}
+
+document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('parent-profile-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('parent-dropdown').classList.remove('show');
+    }
+});
+
+function logoutParent() {
+    localStorage.removeItem('parent_name');
+    document.getElementById('parent-name').textContent = 'Гость';
+    showToast('Вы вышли');
+}
+
+function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
-        b.classList.add('text-slate-500');
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('text-slate-500');
     });
-    document.getElementById('tab-' + name).classList.add('active');
-    const btn = document.getElementById('btn-' + name);
-    btn.classList.remove('text-slate-500');
-    btn.classList.add('bg-indigo-600','text-white','shadow-md','shadow-indigo-100');
-    if (name === 'live')   { loadMirror(); loadBasket(); }
-    if (name === 'memory') loadBiography();
-    if (name === 'stats')  loadProfile();
-    if (name === 'server') loadServerStatus();
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    const activeBtn = document.getElementById(`btn-${tabName}`);
+    activeBtn.classList.remove('text-slate-500');
+    activeBtn.classList.add('bg-indigo-600', 'text-white');
+    
+    if (CURRENT_UID) {
+        if (tabName === 'artifacts') loadArtifacts();
+        if (tabName === 'bridges') loadBridges();
+        if (tabName === 'memory') { loadMemory(); loadKarmaGraph(); }
+        if (tabName === 'stats') loadStats();
+        if (tabName === 'baskets') loadBaskets();
+    }
 }
 
-function showToast(m) {
-    const t = document.getElementById('toast');
-    t.textContent = m;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-// ─── REGISTRY: uid-селектор (§10, §13.4) ──────────────────
-async function loadRegistry() {
+// ============================================================
+//  API ВЫЗОВЫ
+// ============================================================
+async function apiGet(endpoint) {
     try {
-        const r = await fetch(`${API}/api/registry`);
-        REGISTRY = await r.json();
-        const sel = document.getElementById('child-selector');
-        const profiles = REGISTRY.profiles || [];
+        const res = await fetch(`${API}${endpoint}`);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        console.warn(`API GET ${endpoint} failed:`, e);
+        return null;
+    }
+}
 
-        if (profiles.length === 0) {
-            sel.innerHTML = '<option value="">Нет профилей</option>';
-            return;
+async function apiPost(endpoint, data) {
+    try {
+        const res = await fetch(`${API}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        console.warn(`API POST ${endpoint} failed:`, e);
+        return null;
+    }
+}
+
+// ============================================================
+//  НОВЫЙ ГРАФИК КАРМЫ (Stepped/Curve + градиент + кликабельные точки)
+// ============================================================
+async function loadKarmaGraph() {
+    if (!CURRENT_UID) return;
+    
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    const history = bio?.karma?.history || [];
+    currentKarmaHistory = history;
+    
+    if (history.length === 0) {
+        const canvas = document.getElementById('karma-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px Nunito';
+            ctx.fillText('Нет данных о карме', canvas.width/2 - 80, canvas.height/2);
         }
+        return;
+    }
+    
+    // Считаем накопительную карму
+    let cumulative = 0;
+    const cumulativeData = [];
+    const labels = [];
+    const events = [];
+    
+    for (let i = 0; i < history.length; i++) {
+        cumulative += history[i].delta;
+        cumulativeData.push(cumulative);
+        // Формируем подпись: номер события + причина
+        const reason = history[i].reason || 'событие';
+        const shortReason = reason.length > 25 ? reason.slice(0, 22) + '...' : reason;
+        labels.push(`${i+1}`);
+        events.push({
+            index: i,
+            reason: reason,
+            delta: history[i].delta,
+            cumulative: cumulative,
+            ts: history[i].ts
+        });
+    }
+    
+    const canvas = document.getElementById('karma-canvas');
+    if (!canvas) return;
+    
+    // Уничтожаем старый график, если есть
+    if (karmaTrendChart) {
+        karmaTrendChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Создаём градиент для заливки
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)');
+    
+    karmaTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Накопленная карма',
+                data: cumulativeData,
+                borderColor: '#6366f1',
+                backgroundColor: gradient,
+                borderWidth: 3,
+                tension: 0.3,        // плавная кривая (Bezier)
+                fill: true,
+                pointRadius: 6,
+                pointHoverRadius: 10,
+                pointBackgroundColor: (context) => {
+                    const value = cumulativeData[context.dataIndex];
+                    if (value >= 0) return '#22c55e';
+                    return '#ef4444';
+                },
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointStyle: 'circle'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const idx = context.dataIndex;
+                            const event = events[idx];
+                            return [
+                                `Карма: ${event.cumulative}`,
+                                `Изменение: ${event.delta >= 0 ? '+' : ''}${event.delta}`,
+                                `Причина: ${event.reason}`
+                            ];
+                        }
+                    },
+                    backgroundColor: '#1e293b',
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#cbd5e1'
+                },
+                legend: {
+                    position: 'top',
+                    labels: { font: { family: 'Nunito', size: 12 } }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'Карма', font: { family: 'Nunito', size: 12 } },
+                    grid: { color: '#e2e8f0' },
+                    beginAtZero: true
+                },
+                x: {
+                    title: { display: true, text: 'Шаг', font: { family: 'Nunito', size: 12 } },
+                    grid: { display: false }
+                }
+            },
+            onClick: (event, activeElements) => {
+                if (activeElements.length === 0) return;
+                const idx = activeElements[0].dataIndex;
+                const eventData = events[idx];
+                if (eventData) {
+                    // Подсвечиваем соответствующий элемент в ленте памяти
+                    highlightMemoryItem(idx);
+                    showToast(`📖 ${eventData.reason} (${eventData.delta >= 0 ? '+' : ''}${eventData.delta} кармы)`);
+                }
+            }
+        }
+    });
+}
 
-        sel.innerHTML = profiles.map(p =>
-            `<option value="${p.uid}">${p.alias} (${p.uid})</option>`
-        ).join('');
+// Подсветка элемента в ленте памяти
+function highlightMemoryItem(eventIndex) {
+    const memoryItems = document.querySelectorAll('#memory-timeline .memory-item');
+    if (memoryItems[eventIndex]) {
+        // Убираем подсветку у всех
+        memoryItems.forEach(item => item.classList.remove('highlight'));
+        // Добавляем нужному
+        memoryItems[eventIndex].classList.add('highlight');
+        // Прокручиваем к нему
+        memoryItems[eventIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Через 2 секунды убираем подсветку
+        setTimeout(() => {
+            memoryItems[eventIndex]?.classList.remove('highlight');
+        }, 2000);
+    }
+}
 
-        // Автовыбор первого
-        CURRENT_UID = profiles[0].uid;
-        CURRENT_ALIAS = profiles[0].alias;
-        sel.value = CURRENT_UID;
-
-        sel.onchange = () => {
-            const p = profiles.find(x => x.uid === sel.value);
-            if (p) {
-                CURRENT_UID = p.uid;
-                CURRENT_ALIAS = p.alias;
-                showToast(`Переключено на ${p.alias}`);
-                loadAll();
+// ============================================================
+//  РЕГИСТРАЦИЯ И ДЕТИ
+// ============================================================
+async function loadRegistry() {
+    const data = await apiGet('/api/registry');
+    if (data && data.profiles) {
+        REGISTRY = data;
+        const selector = document.getElementById('child-selector');
+        selector.innerHTML = '<option value="">Выберите ребёнка</option>' + 
+            data.profiles.map(p => `<option value="${p.uid}">${p.alias} (${p.age_group || '?'})</option>`).join('');
+        
+        if (data.profiles.length > 0 && !CURRENT_UID) {
+            CURRENT_UID = data.profiles[0].uid;
+            CURRENT_ALIAS = data.profiles[0].alias;
+            selector.value = CURRENT_UID;
+            loadChildInfo();
+        }
+        
+        selector.onchange = () => {
+            const selected = data.profiles.find(p => p.uid === selector.value);
+            if (selected) {
+                CURRENT_UID = selected.uid;
+                CURRENT_ALIAS = selected.alias;
+                loadChildInfo();
+                refreshAll();
             }
         };
-
-        loadAll();
-    } catch (e) {
-        // Fallback: registry не существует → v1 mode
-        console.warn('Registry не доступен, fallback на v1');
-        CURRENT_UID = null;
-        CURRENT_ALIAS = 'Женя';
-        document.getElementById('child-selector').innerHTML =
-            `<option value="">Женя (v1)</option>`;
-        loadAll();
     }
 }
 
-function loadAll() {
-    checkHealth();
-    loadMirror();
-    loadBasket();
+async function loadChildInfo() {
+    if (!CURRENT_UID) return;
+    const profile = await apiGet(`/api/parent/uid/${CURRENT_UID}/child_profile`);
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    
+    document.getElementById('child-info').innerHTML = `
+        <p class="font-bold text-indigo-800">${CURRENT_ALIAS}</p>
+        <p class="text-sm">🎨 Паттернов: ${profile?.psychological_patterns?.length || 0}</p>
+        <p class="text-sm">✨ Артефактов: ${bio?.artifacts?.length || 0}</p>
+        <p class="text-sm">🌟 Карма: ${bio?.karma?.current || 0}</p>
+    `;
 }
 
-// ─── FETCH HELPERS (uid → v2, fallback → v1) ──────────────
-async function parentFetch(category) {
-    if (CURRENT_UID) {
-        const r = await fetch(`${API}/api/parent/uid/${CURRENT_UID}/${category}`);
-        if (r.ok) return await r.json();
+async function addChild() {
+    const name = document.getElementById('new-child-name').value.trim();
+    const ageGroup = document.getElementById('new-child-age').value;
+    
+    if (!name) {
+        showToast('Введите имя ребёнка');
+        return;
     }
-    const r = await fetch(`${API}/api/parent/${category}/${encodeURIComponent(CURRENT_ALIAS)}`);
-    if (r.ok) return await r.json();
-    throw new Error(`${category} не найден`);
+    
+    const result = await apiPost('/api/registry/add_child', { name, age_group: ageGroup });
+    const resultDiv = document.getElementById('add-child-result');
+    
+    if (result && result.ok) {
+        resultDiv.innerHTML = `<div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl text-sm">✅ ${result.name} добавлен! UID: ${result.uid}</div>`;
+        document.getElementById('new-child-name').value = '';
+        loadRegistry();
+        setTimeout(() => resultDiv.innerHTML = '', 3000);
+    } else {
+        resultDiv.innerHTML = `<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ Ошибка: ${result?.message || 'неизвестная'}</div>`;
+    }
 }
 
-// ─── HEALTH ────────────────────────────────────────────────
+// ============================================================
+//  КОРЗИНЫ
+// ============================================================
+async function createBasket() {
+    if (!CURRENT_UID) {
+        showToast('Сначала выберите ребёнка');
+        return;
+    }
+    
+    const title = document.getElementById('basket-title').value.trim();
+    const description = document.getElementById('basket-description').value.trim();
+    const parentGoal = document.getElementById('basket-parent-goal').value.trim();
+    const emotion = document.getElementById('basket-emotion').value;
+    
+    if (!title || !description) {
+        showToast('Заполните название и описание');
+        return;
+    }
+    
+    const result = await apiPost(`/api/parent/uid/${CURRENT_UID}/basket`, {
+        title, description, parent_goal: parentGoal || "Помочь ребёнку",
+        child_problem_statement: description, theme: "дружба",
+        emotional_context: { child_emotion: emotion }
+    });
+    
+    const resultDiv = document.getElementById('basket-result');
+    if (result && result.ok) {
+        resultDiv.innerHTML = `<div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl text-sm">✅ Корзина "${title}" создана! Мостик добавлен.</div>`;
+        document.getElementById('basket-title').value = '';
+        document.getElementById('basket-description').value = '';
+        document.getElementById('basket-parent-goal').value = '';
+        loadBaskets();
+        loadBridges();
+        setTimeout(() => resultDiv.innerHTML = '', 3000);
+    } else {
+        resultDiv.innerHTML = `<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ Ошибка создания</div>`;
+    }
+}
+
+async function loadBaskets() {
+    if (!CURRENT_UID) return;
+    const basket = await apiGet(`/api/parent/uid/${CURRENT_UID}/basket`);
+    
+    const activeContainer = document.getElementById('active-baskets-list');
+    const completedContainer = document.getElementById('completed-baskets-list');
+    
+    if (!basket || !basket.active_baskets || basket.active_baskets.length === 0) {
+        activeContainer.innerHTML = '<div class="text-center py-6 text-slate-400 italic">Нет активных корзин</div>';
+    } else {
+        activeContainer.innerHTML = basket.active_baskets.map(b => `
+            <div class="border border-slate-100 rounded-xl p-4 bg-white shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-indigo-600 text-sm">${b.id}</p>
+                        <p class="font-bold">${b.title}</p>
+                        <p class="text-xs text-slate-500 mt-1">${b.description?.slice(0, 100)}</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black ${b.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}">${b.status}</span>
+                </div>
+                ${b.bridge_to_reality ? `<div class="mt-2 text-xs text-amber-600">🌉 Мостик: ${b.bridge_to_reality.real_world_action?.slice(0, 80)}</div>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    if (!basket || !basket.completed_baskets || basket.completed_baskets.length === 0) {
+        completedContainer.innerHTML = '<div class="text-center py-4 text-slate-400 italic text-sm">Нет завершённых</div>';
+    } else {
+        completedContainer.innerHTML = basket.completed_baskets.map(b => `
+            <div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
+                <p class="text-sm font-bold">${b.title}</p>
+                <p class="text-[10px] text-slate-400">Завершена: ${b.completed_at ? new Date(b.completed_at).toLocaleDateString() : ''}</p>
+            </div>
+        `).join('');
+    }
+}
+
+// ============================================================
+//  АРТЕФАКТЫ
+// ============================================================
+async function loadArtifacts() {
+    if (!CURRENT_UID) return;
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    const artifacts = bio?.artifacts || [];
+    
+    const container = document.getElementById('artifacts-grid');
+    if (artifacts.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 italic col-span-4">Нет артефактов. Начните приключение в Искорке!</div>';
+    } else {
+        container.innerHTML = artifacts.map(a => `
+            <div class="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100">
+                <div class="text-3xl mb-2">✨</div>
+                <p class="font-bold text-amber-800">${a.name}</p>
+                <p class="text-[10px] text-amber-600 mt-1">${a.description || ''}</p>
+                <p class="text-[9px] text-amber-400 mt-2">${a.obtained_at ? new Date(a.obtained_at).toLocaleDateString() : ''}</p>
+            </div>
+        `).join('');
+    }
+}
+
+// ============================================================
+//  МОСТИКИ
+// ============================================================
+async function loadBridges() {
+    if (!CURRENT_UID) return;
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    const pending = bio?.pending_bridges || [];
+    const completed = bio?.completed_bridges || [];
+    
+    const pendingContainer = document.getElementById('pending-bridges-list');
+    const completedContainer = document.getElementById('completed-bridges-list');
+    
+    if (pending.length === 0) {
+        pendingContainer.innerHTML = '<div class="text-center py-6 text-slate-400 italic">Нет активных мостиков</div>';
+    } else {
+        pendingContainer.innerHTML = pending.map((b, idx) => `
+            <div class="border border-amber-200 rounded-xl p-4 bg-amber-50">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <p class="font-bold text-amber-800">🌉 Мостик в реальность</p>
+                        <p class="text-sm text-amber-700 mt-1">${b.task}</p>
+                        <p class="text-[10px] text-amber-500 mt-2">Награда: +${b.karma_reward_on_success || 2} кармы</p>
+                    </div>
+                    <button onclick="confirmBridge('${b.task.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition">✅ Выполнено</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    if (completed.length === 0) {
+        completedContainer.innerHTML = '<div class="text-center py-4 text-slate-400 italic text-sm">Нет выполненных мостиков</div>';
+    } else {
+        completedContainer.innerHTML = completed.map(b => `
+            <div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
+                <p class="text-sm font-bold text-green-700">✅ Выполнено</p>
+                <p class="text-xs text-slate-600">${b.task}</p>
+                <p class="text-[10px] text-slate-400 mt-1">+${b.karma_reward_on_success || 2} кармы</p>
+            </div>
+        `).join('');
+    }
+}
+
+async function confirmBridge(task) {
+    if (!CURRENT_UID) return;
+    const result = await apiPost(`/api/parent/uid/${CURRENT_UID}/bridge/complete`, { task });
+    if (result && result.ok) {
+        showToast(`✅ Мостик выполнен! +${result.karma_reward} кармы`);
+        loadBridges();
+        loadMemory();
+        loadKarmaGraph();  // обновляем график
+        loadStats();
+    } else {
+        showToast('❌ Ошибка подтверждения');
+    }
+}
+
+// ============================================================
+//  ПАМЯТЬ (ОБНОВЛЕНА — добавляем data-index и класс memory-item)
+// ============================================================
+async function loadMemory() {
+    if (!CURRENT_UID) return;
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    
+    document.getElementById('karma-value').textContent = bio?.karma?.current || 0;
+    
+    const history = bio?.karma?.history || [];
+    const container = document.getElementById('memory-timeline');
+    
+    if (history.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 italic">История кармы пуста</div>';
+    } else {
+        // Считаем накопительную карму для отображения
+        let cumulative = 0;
+        const items = [];
+        for (let i = 0; i < history.length; i++) {
+            cumulative += history[i].delta;
+            items.push(`
+                <div class="memory-item p-3 rounded-xl bg-white border border-slate-100 shadow-sm" data-index="${i}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-indigo-600">${history[i].reason || 'Событие'}</p>
+                            <p class="text-xs text-slate-500 mt-1">
+                                Изменение: <span class="${history[i].delta >= 0 ? 'text-green-600' : 'text-red-600'} font-bold">${history[i].delta >= 0 ? '+' : ''}${history[i].delta}</span>
+                                → Накоплено: <span class="font-bold">${cumulative}</span>
+                            </p>
+                            <p class="text-[10px] text-slate-400 mt-1">${history[i].ts ? new Date(history[i].ts).toLocaleString() : ''}</p>
+                        </div>
+                        <div class="text-2xl ${history[i].delta >= 0 ? 'text-green-500' : 'text-red-500'}">
+                            ${history[i].delta >= 0 ? '✨' : '💔'}
+                        </div>
+                    </div>
+                </div>
+            `);
+        }
+        container.innerHTML = items.join('');
+        
+        // Добавляем обработчики кликов на элементы памяти
+        document.querySelectorAll('.memory-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const idx = parseInt(el.dataset.index);
+                if (!isNaN(idx) && karmaTrendChart) {
+                    // Подсвечиваем соответствующую точку на графике
+                    if (karmaTrendChart && karmaTrendChart.data.datasets[0].data[idx] !== undefined) {
+                        // Эмулируем клик по точке графика
+                        const meta = karmaTrendChart.getDatasetMeta(0);
+                        if (meta.data[idx]) {
+                            // Просто подсвечиваем элемент и показываем тултип
+                            highlightMemoryItem(idx);
+                            const eventData = currentKarmaHistory[idx];
+                            if (eventData) {
+                                showToast(`📖 ${eventData.reason} (${eventData.delta >= 0 ? '+' : ''}${eventData.delta} кармы)`);
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+}
+
+// ============================================================
+//  СТАТИСТИКА
+// ============================================================
+async function loadStats() {
+    if (!CURRENT_UID) return;
+    const profile = await apiGet(`/api/parent/uid/${CURRENT_UID}/child_profile`);
+    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
+    
+    const metrics = document.getElementById('stats-metrics');
+    metrics.innerHTML = `
+        <div class="p-4 rounded-2xl bg-slate-50 text-center">
+            <div class="text-2xl">🎨</div>
+            <div class="text-xl font-black">${profile?.psychological_patterns?.length || 0}</div>
+            <div class="text-[10px] text-slate-400">Паттерны</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-50 text-center">
+            <div class="text-2xl">✨</div>
+            <div class="text-xl font-black">${bio?.artifacts?.length || 0}</div>
+            <div class="text-[10px] text-slate-400">Артефакты</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-50 text-center">
+            <div class="text-2xl">🌟</div>
+            <div class="text-xl font-black">${bio?.karma?.current || 0}</div>
+            <div class="text-[10px] text-slate-400">Карма</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-50 text-center">
+            <div class="text-2xl">📜</div>
+            <div class="text-xl font-black">${bio?.karma?.history?.length || 0}</div>
+            <div class="text-[10px] text-slate-400">Событий</div>
+        </div>
+    `;
+    
+    // График кармы (для вкладки Статистика, старый)
+    const ctx = document.getElementById('karma-chart')?.getContext('2d');
+    if (ctx && bio?.karma?.history) {
+        if (karmaChart) karmaChart.destroy();
+        const history = bio.karma.history.slice(-10);
+        karmaChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: history.map((_, i) => i + 1),
+                datasets: [{
+                    label: 'Карма',
+                    data: history.reduce((acc, h, i) => {
+                        const prev = i === 0 ? 0 : acc[i-1];
+                        acc.push(prev + h.delta);
+                        return acc;
+                    }, []),
+                    borderColor: '#6366f1',
+                    tension: 0.3,
+                    fill: false
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+    }
+}
+
+// ============================================================
+//  ЗДОРОВЬЕ
+// ============================================================
 async function checkHealth() {
     try {
-        const r = await fetch(`${API}/health`);
-        const h = await r.json();
-        document.getElementById('connection-label').textContent = `Маяк v${h.version}`;
-        document.getElementById('connection-sub').textContent = `${h.agents_available} агентов • ${h.registry_profiles || '?'} профилей`;
-        document.getElementById('orb-core').classList.remove('bg-red-400');
-        document.getElementById('orb-core').classList.add('bg-indigo-500');
+        const health = await apiGet('/health');
+        if (health) {
+            document.getElementById('connection-label').textContent = `Маяк v${health.version}`;
+            document.getElementById('connection-sub').textContent = `${health.agents_available || 0} агентов`;
+            document.getElementById('orb-core').classList.remove('bg-red-400');
+            document.getElementById('orb-core').classList.add('bg-indigo-500');
+        } else {
+            throw new Error('No response');
+        }
     } catch (e) {
         document.getElementById('connection-label').textContent = 'Нет связи';
-        document.getElementById('connection-sub').textContent = '';
+        document.getElementById('connection-sub').textContent = 'офлайн';
         document.getElementById('orb-core').classList.remove('bg-indigo-500');
         document.getElementById('orb-core').classList.add('bg-red-400');
     }
 }
 
-// ─── СЕМАНТИЧЕСКОЕ ЗЕРКАЛО (§13.2) ────────────────────────
-async function loadMirror() {
-    try {
-        const d = await parentFetch('child_profile');
-        const tagEl = document.getElementById('semantic-tags');
-        if (d.psychological_patterns && d.psychological_patterns.length) {
-            tagEl.innerHTML = d.psychological_patterns.slice(0, 8).map(p =>
-                `<span class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100 italic">#${(p.split(':')[0] || p)}</span>`
-            ).join('');
-        } else {
-            tagEl.innerHTML = '<span class="text-sm text-slate-400 italic">Паттерны появятся после первой истории</span>';
-        }
-    } catch (e) {
-        document.getElementById('semantic-tags').innerHTML =
-            '<span class="text-sm text-slate-400 italic">Нет данных — создайте первую историю</span>';
-    }
-
-    // Мостик в Реал из basket
-    try {
-        const d = await parentFetch('basket');
-        if (d.bridge_to_reality) {
-            document.getElementById('bridge-tip').style.display = 'block';
-            const s = d.bridge_to_reality.conversation_starters || [];
-            if (s.length) document.getElementById('bridge-text').innerHTML = `<strong>Спроси ${CURRENT_ALIAS}:</strong> ${s[0]}`;
-            const a = d.bridge_to_reality.activities || [];
-            if (a.length) document.getElementById('tutor-hint').textContent = `💡 ${a[0]}`;
-        }
-    } catch (e) { /* no basket yet */ }
+function refreshAll() {
+    if (!CURRENT_UID) return;
+    loadChildInfo();
+    loadBaskets();
+    loadArtifacts();
+    loadBridges();
+    loadMemory();
+    loadKarmaGraph();  // обновляем график
+    loadStats();
+    showToast('Обновлено');
 }
 
-// ─── КОРЗИНКА ДАРОВ (sidebar) ──────────────────────────────
-async function loadBasket() {
-    const el = document.getElementById('basket-content');
-    try {
-        const d = await parentFetch('basket');
-        if (!d || d.error) throw 0;
-
-        let html = '';
-        if (d.parent_insights && d.parent_insights.length) {
-            html += d.parent_insights.slice(0, 3).map(i =>
-                `<div class="p-4 bg-violet-50 rounded-2xl border border-violet-100 mb-3 text-sm text-violet-800">🔮 ${i}</div>`
-            ).join('');
-        }
-        if (d.bridge_to_reality?.activities?.length) {
-            html += `<div class="p-4 bg-amber-50 rounded-2xl border border-amber-100 mb-3 text-sm text-amber-800">
-                🎨 <strong>Активность:</strong> ${d.bridge_to_reality.activities[0]}</div>`;
-        }
-        if (d.next_story_hints?.suggested_theme) {
-            html += `<div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-sm text-emerald-800">
-                🌱 <strong>Следующая тема:</strong> ${d.next_story_hints.suggested_theme}</div>`;
-        }
-        el.innerHTML = html || '<div class="text-center py-6 text-slate-400 text-sm italic">Корзинка пока пуста</div>';
-    } catch (e) {
-        el.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm italic">Появится после первой истории</div>';
-    }
-}
-
-// ─── ЗАКАЗ ИСТОРИИ ─────────────────────────────────────────
-async function sendOrder() {
-    const input = document.getElementById('tutor-input');
-    const msg = input.value.trim();
-    if (!msg) { showToast('Заполните задачу!'); return; }
-    const btn = document.getElementById('btn-order');
-    const res = document.getElementById('order-result');
-
-    btn.disabled = true;
-    btn.textContent = 'Создаю… 2-5 мин';
-    res.innerHTML = '<div class="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><div class="text-3xl mb-3 animate-pulse">✨</div><p class="text-sm text-indigo-700 font-bold">18 агентов работают…</p></div>';
-
-    try {
-        const body = {
-            child_name: CURRENT_ALIAS,
-            child_age: '7-12',
-            task_context: msg,
-        };
-        if (CURRENT_UID) body.uid = CURRENT_UID;
-
-        const r = await fetch(`${API}/api/studio/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        if (!r.ok) {
-            const e = await r.json().catch(() => ({}));
-            throw new Error(e.detail || `Ошибка ${r.status}`);
-        }
-        const d = await r.json();
-        showToast(`Готово! ${d.agents_completed} агентов.`);
-        res.innerHTML = `<div class="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-            <div class="text-3xl mb-3">🎉</div>
-            <p class="text-sm text-emerald-700 font-bold">История для «${d.child_name}» создана!</p>
-            <p class="text-xs text-emerald-600 mt-2">${d.agents_completed} агентов отработали • uid: ${d.uid || '—'}</p>
-        </div>`;
-        input.value = '';
-        // Обновляем данные
-        if (d.uid && !CURRENT_UID) {
-            CURRENT_UID = d.uid;
-            loadRegistry(); // перезагрузить список
-        }
-        loadMirror();
-        loadBasket();
-    } catch (e) {
-        console.error(e);
-        res.innerHTML = `<div class="p-6 bg-red-50 rounded-2xl border border-red-100 text-center">
-            <p class="text-sm text-red-700 font-bold">Ошибка: ${e.message}</p>
-            <p class="text-xs text-red-500 mt-2">Проверьте: <code>cd server && uvicorn beacon_v4:app --port 8001</code></p>
-        </div>`;
-    }
-    btn.disabled = false;
-    btn.textContent = 'Создать историю ✦';
-}
-
-// ─── БИОГРАФИЯ (§12) ──────────────────────────────────────
-async function loadBiography() {
-    const list = document.getElementById('bio-list');
-    const tags = document.getElementById('memory-tags');
-    try {
-        const d = await parentFetch('biography');
-        if (!d || !d.karmic_trail || !d.karmic_trail.length) {
-            list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>';
-            return;
-        }
-
-        let h = `<div class="flex gap-3 mb-6">
-            <div class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100">📚 ${d.total_stories || 0} историй</div>
-            <div class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-bold border border-violet-100">👥 ${Object.keys(d.character_bonds || {}).length} персонажей</div>
-            ${d.memory_depth ? `<div class="px-4 py-2 bg-amber-50 text-amber-600 rounded-2xl text-sm font-bold border border-amber-100">🧠 ${d.memory_depth}</div>` : ''}
-        </div>`;
-
-        h += d.karmic_trail.slice().reverse().map(t => `
-            <div class="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white mb-3 shadow-sm">
-                <div class="text-xl">📜</div>
-                <div class="flex-1">
-                    <p class="text-sm text-slate-700 font-bold">${t.theme || 'Глава'}</p>
-                    <p class="text-xs text-slate-500 mt-1">${t.task_context || t.emotional_goal || ''}</p>
-                    <div class="flex flex-wrap gap-1 mt-2">
-                        ${(t.characters_met || []).map(c => `<span class="text-[10px] px-2 py-0.5 bg-violet-50 text-violet-500 rounded-lg border border-violet-100">${c}</span>`).join('')}
-                        ${(t.choices_made || []).map(c => `<span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded-lg border border-indigo-100">${c.choice_id || c.label || c}</span>`).join('')}
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-2">${t.date ? new Date(t.date).toLocaleDateString('ru') : ''}</p>
-                </div>
-            </div>
-        `).join('');
-        list.innerHTML = h;
-
-        // Персонажи
-        if (d.character_bonds) {
-            tags.innerHTML = Object.entries(d.character_bonds)
-                .sort((a, b) => b[1] - a[1])
-                .map(([c, n]) => `<span class="px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl text-sm font-semibold border border-violet-100">👤 ${c} (×${n})</span>`)
-                .join('');
-        }
-    } catch (e) {
-        list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm italic">Биография появится после первой истории.</div>';
-    }
-}
-
-// ─── ПРОФИЛЬ / СТАТИСТИКА ─────────────────────────────────
-async function loadProfile() {
-    const grid = document.getElementById('stats-grid');
-    const growth = document.getElementById('growth-section');
-    try {
-        const d = await parentFetch('child_profile');
-        grid.innerHTML = [
-            { l: 'Сессии', v: d.total_sessions || 0, i: '🕯' },
-            { l: 'Выборы', v: d.total_choices_made || 0, i: '🔀' },
-            { l: 'Паттерны', v: (d.psychological_patterns || []).length, i: '🧠' },
-            { l: 'Персонажи', v: Object.keys(d.character_bonds || {}).length, i: '👥' },
-        ].map(s => `
-            <div class="p-6 rounded-2xl border border-slate-100 bg-slate-50 text-center">
-                <div class="text-3xl mb-2">${s.i}</div>
-                <div class="text-3xl font-bold text-slate-800">${s.v}</div>
-                <div class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1">${s.l}</div>
-            </div>
-        `).join('');
-
-        growth.innerHTML = '';
-        if (d.growth_zones && d.growth_zones.length) {
-            growth.innerHTML = `<div class="mt-6">
-                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Зоны роста</h3>
-                ${d.growth_zones.slice(0, 5).map(z => `
-                    <div class="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 mb-2">
-                        <span class="text-xl">🌱</span>
-                        <span class="text-sm font-semibold text-emerald-800">${(z.split(':')[0] || z)}</span>
-                    </div>
-                `).join('')}
-            </div>`;
-        }
-    } catch (e) {
-        grid.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-400 text-sm italic">Профиль появится после первой истории.</div>';
-    }
-}
-
-// ─── СЕРВЕР ───────────────────────────────────────────────
-async function loadServerStatus() {
-    const el = document.getElementById('server-info');
-    try {
-        const [health, stats] = await Promise.all([
-            fetch(`${API}/health`).then(r => r.json()),
-            fetch(`${API}/stats`).then(r => r.json()),
-        ]);
-        el.innerHTML = `
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
-                    <div class="text-2xl mb-1">✅</div>
-                    <div class="text-sm font-bold text-emerald-700">${health.status}</div>
-                    <div class="text-[10px] text-emerald-600 mt-1">v${health.version} • ${health.protocol || '—'}</div>
-                </div>
-                <div class="p-5 rounded-2xl bg-indigo-50 border border-indigo-100 text-center">
-                    <div class="text-2xl mb-1">🤖</div>
-                    <div class="text-sm font-bold text-indigo-700">${health.agents_available} агентов</div>
-                    <div class="text-[10px] text-indigo-600 mt-1">${health.model}</div>
-                </div>
-                <div class="p-5 rounded-2xl bg-violet-50 border border-violet-100 text-center">
-                    <div class="text-2xl mb-1">📖</div>
-                    <div class="text-sm font-bold text-violet-700">${stats.total_generated_books} книг</div>
-                    <div class="text-[10px] text-violet-600 mt-1">создано</div>
-                </div>
-                <div class="p-5 rounded-2xl bg-amber-50 border border-amber-100 text-center">
-                    <div class="text-2xl mb-1">🆔</div>
-                    <div class="text-sm font-bold text-amber-700">${stats.total_profiles || health.registry_profiles || 0} профилей</div>
-                    <div class="text-[10px] text-amber-600 mt-1">в реестре</div>
-                </div>
-            </div>
-            <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200">
-                <div class="text-xs text-slate-500 space-y-2">
-                    <p><strong>API ключ:</strong> ${health.api_key_set ? '✅ Установлен' : '❌ Отсутствует'}</p>
-                    <p><strong>Студия:</strong> ${health.studio_root || '—'}</p>
-                    <p><strong>Книги:</strong> ${health.books_dir || '—'}</p>
-                    <p><strong>Устройств:</strong> ${stats.total_devices} • Синхронизаций: ${stats.total_syncs}</p>
-                </div>
-            </div>`;
-    } catch (e) {
-        el.innerHTML = `<div class="p-6 bg-red-50 rounded-2xl border border-red-100 text-center">
-            <p class="text-sm text-red-700 font-bold">Маяк недоступен</p>
-            <p class="text-xs text-red-500 mt-2">Запустите: <code>cd server && uvicorn beacon_v4:app --port 8001</code></p>
-        </div>`;
-    }
-}
-
-// ─── СБРОС (DEV) ──────────────────────────────────────────
-function resetProgress() {
-    if (!confirm('Сбросить прогресс IndexedDB?')) return;
-    indexedDB.deleteDatabase('iskra_fort').onsuccess = () => showToast('Прогресс сброшен');
-}
-
-// ─── СТАРТ ────────────────────────────────────────────────
-loadRegistry();
+// ============================================================
+//  ЗАПУСК
+// ============================================================
 setInterval(checkHealth, 15000);
+loadRegistry();
+checkHealth();
 </script>
 </body>
 </html>

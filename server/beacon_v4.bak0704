@@ -1,0 +1,882 @@
+"""
+beacon.py v5.2 — Единый сервер Живой Книги (Возрастная ДНК)
+============================================================
+v5.2: Динамический промпт по возрасту в free_talk + POST /api/registry/add_child
+v5.1: free_talk пишет в biography в реальном времени, автосоздание basket.json
+v5.0: uid-маршрутизация, registry.json, biography writer
+
+Возрастные парадигмы (ТЗ от Локи — «Runtime-Креатив»):
+  👶 2-4 года: Принцип Тёмной Комнаты. Минимум текста, аудио-теги [magic_chime]
+  👦 5-9 лет:  Матрица Эмпатии. Метод Гиппенрейтер. Два вдоха.
+  🧑 9-12 лет: Свет ярче тени. Честность выше комфорта. Философский разговор.
+
+Запуск:
+    pip install fastapi uvicorn httpx python-dotenv
+    uvicorn beacon_v4:app --host 0.0.0.0 --port 8001
+"""
+
+import json
+import re
+import hashlib
+import sqlite3
+import os
+import httpx
+from datetime import datetime
+from pathlib import Path
+from functools import lru_cache
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = FastAPI(title="Живая Книга — Сервер v5.2 (Возрастная ДНК)", version="5.2.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ─── ПУТИ ────────────────────────────────────────────────────────────────────
+BASE_DIR  = Path(__file__).resolve().parent
+BOOKS_DIR = Path(__file__).resolve().parent.parent / "books"
+BOOKS_DIR.mkdir(parents=True, exist_ok=True)
+
+PERSONAL_DIR  = BOOKS_DIR / "personal"
+REGISTRY_PATH = BOOKS_DIR / "registry.json"
+BEACON_DB     = BASE_DIR / "beacon.db"
+
+print(f"📁 BOOKS_DIR = {BOOKS_DIR}")
+
+# ─── OPENROUTER ──────────────────────────────────────────────────────────────
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
+
+# ─── ПРОМПТЫ АГЕНТОВ ─────────────────────────────────────────────────────────
+STUDIO_ROOT  = Path(os.getenv("STUDIO_ROOT", str(BASE_DIR / ".." / ".." / "-2")))
+MODULES_PATH = STUDIO_ROOT / "studio" / "modules" / "living_book"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ВОЗРАСТНАЯ ДНК — v5.2 (ТЗ от Локи)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+AGE_PARADIGMS = {
+    "2-4": {
+        "name": "Дирижёр звука",
+        "system_addon": """ВОЗРАСТНАЯ ПАРАДИГМА: 2-4 года (Принцип Тёмной Комнаты)
+- Говори ОЧЕНЬ коротко: 1 предложение максимум.
+- Используй простые слова, как для малыша.
+- Добавляй звуковые теги в квадратных скобках: [magic_chime], [water_splash], [soft_bell], [bird_song], [gentle_laugh].
+- Звуки ВАЖНЕЕ слов. Каждый ответ должен содержать хотя бы один звуковой тег.
+- Тон: нежный, напевный, как колыбельная.
+- НЕ задавай сложных вопросов. Предлагай простые действия: потрогать, послушать, повторить звук."""
+    },
+    "3-6": {
+        "name": "Нежный проводник",
+        "system_addon": """ВОЗРАСТНАЯ ПАРАДИГМА: 3-6 лет
+- Говори коротко: максимум 2 предложения.
+- Простые слова, тёплый тон.
+- Можно добавлять звуковые теги: [magic_chime], [bird_song].
+- Метод Гиппенрейтер: отрази чувство, предложи простое действие.
+- НЕ давай готовых решений. Задай один простой вопрос.
+- Если ребёнок испугался — признай страх: «Ой, это правда страшно!» + предложи «давай вместе подышим»."""
+    },
+    "5-9": {
+        "name": "Оранжевый страх и два вдоха",
+        "system_addon": """ВОЗРАСТНАЯ ПАРАДИГМА: 5-9 лет (Матрица Эмпатии — Агент София LB03)
+- Максимум 2 предложения.
+- Строгий метод Гиппенрейтер: отрази чувство ребёнка, задай направляющий вопрос.
+- ЗАПРЕЩЕНО давать готовые решения типа «не бойся, монстров нет».
+- Если ребёнок боится — признай легитимность страха, предложи алгоритм «двух вдохов»:
+  «Ого, кажется, тебе сейчас тревожно. Давай попробуем: один глубокий вдох... и ещё один. Что ты чувствуешь теперь?»
+- Экстернализация: «Этот страх — он как маленький ёжик. Колючий снаружи, а внутри мягкий.»
+- Тон: тёплый, любопытный, застенчивый."""
+    },
+    "7-12": {
+        "name": "Свет ярче тени",
+        "system_addon": """ВОЗРАСТНАЯ ПАРАДИГМА: 7-12 лет (Свет ярче тени)
+- Максимум 2-3 предложения.
+- Метод Гиппенрейтер + правило «Честность выше комфорта».
+- НЕ сглаживай углы. Если ребёнок говорит о сложном — будь честен.
+- Разрешён глубокий философский разговор: обсуждай внутренние тени.
+- Экстернализация проблем: «Эта грусть — она как облако. Оно пришло, побудет и уйдёт. Но ты — не облако.»
+- Задавай вопросы, которые помогают ребёнку САМОМУ найти ответ.
+- Тон: уважительный, как со взрослым, но тёплый."""
+    },
+    "13+": {
+        "name": "Честный собеседник",
+        "system_addon": """ВОЗРАСТНАЯ ПАРАДИГМА: 13+ лет
+- Говори как с равным. Без сюсюканья.
+- Честность выше комфорта. Не избегай сложных тем.
+- Ты — не учитель, а собеседник. Делись наблюдениями, не морализируй.
+- Можно использовать метафоры, юмор, иронию.
+- Задавай глубокие вопросы: «А что для тебя значит дружба?»
+- Тон: спокойный, уважительный, с лёгкой иронией."""
+    },
+}
+
+def get_age_paradigm(child_name: str, uid: Optional[str] = None) -> str:
+    """
+    Определяет возрастную парадигму для ребёнка.
+    Читает age_group из child_profile.json или registry.json.
+    Возвращает system_addon для подмешивания в промпт LLM.
+    """
+    age_group = "7-12"  # default
+
+    # 1. Пробуем child_profile.json
+    folder = None
+    if uid:
+        folder = resolve_uid(uid)
+    if not folder:
+        folder = _find_child_folder(child_name)
+
+    if folder:
+        profile_path = folder / "child_profile.json"
+        if profile_path.exists():
+            try:
+                profile = json.loads(profile_path.read_text(encoding="utf-8"))
+                ag = profile.get("age_group") or profile.get("sessions", [{}])[0].get("age_group")
+                if ag:
+                    age_group = ag
+            except:
+                pass
+
+    # 2. Fallback: registry.json
+    if age_group == "7-12" and uid:
+        p = get_profile_by_uid(uid)
+        if p and p.get("age_group"):
+            age_group = p["age_group"]
+
+    # 3. Ищем подходящую парадигму
+    paradigm = AGE_PARADIGMS.get(age_group)
+    if not paradigm:
+        # Ищем ближайшую
+        for key in AGE_PARADIGMS:
+            if age_group in key or key in age_group:
+                paradigm = AGE_PARADIGMS[key]
+                break
+    if not paradigm:
+        paradigm = AGE_PARADIGMS["7-12"]
+
+    print(f"[AGE DNA] {child_name}: {age_group} → {paradigm['name']}")
+    return paradigm["system_addon"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# РЕЕСТР СУДЕБ (REGISTRY) — §10
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def load_registry() -> dict:
+    if REGISTRY_PATH.exists():
+        return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    empty = {"version": "1.0", "updated_at": datetime.now().isoformat(), "profiles": []}
+    save_registry(empty)
+    return empty
+
+def save_registry(registry: dict):
+    registry["updated_at"] = datetime.now().isoformat()
+    REGISTRY_PATH.write_text(json.dumps(registry, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def generate_uid() -> str:
+    today = datetime.now().strftime("%Y-%m-%d")
+    registry = load_registry()
+    today_count = sum(1 for p in registry["profiles"] if p["uid"].startswith(f"LB-{today}"))
+    return f"LB-{today}-{today_count + 1:04d}"
+
+def resolve_uid(uid: str) -> Optional[Path]:
+    registry = load_registry()
+    for profile in registry.get("profiles", []):
+        if profile["uid"] == uid:
+            folder = BOOKS_DIR / profile["folder"]
+            if folder.exists(): return folder
+    return None
+
+def get_profile_by_uid(uid: str) -> Optional[dict]:
+    registry = load_registry()
+    for profile in registry.get("profiles", []):
+        if profile["uid"] == uid: return profile
+    return None
+
+def find_uid_by_name(child_name: str) -> Optional[str]:
+    registry = load_registry()
+    target = child_name.lower()
+    for profile in registry.get("profiles", []):
+        if profile.get("alias", "").lower() == target: return profile["uid"]
+        if profile.get("folder", "").lower() == target: return profile["uid"]
+    return None
+
+def ensure_registry_entry(child_name: str, age_group: str = "7-12") -> str:
+    existing_uid = find_uid_by_name(child_name)
+    if existing_uid: return existing_uid
+    uid = generate_uid()
+    registry = load_registry()
+    folder = child_name
+    child_dir = _find_child_folder(child_name)
+    if child_dir: folder = child_dir.name
+    registry["profiles"].append({
+        "uid": uid, "alias": child_name, "folder": folder,
+        "age_group": age_group, "created_at": datetime.now().strftime("%Y-%m-%d"),
+        "last_activity": datetime.now().isoformat(),
+        "history_file": "biography.json", "device_ids": [], "status": "active",
+    })
+    save_registry(registry)
+    print(f"[REGISTRY] ✅ {uid} → {folder} ({child_name})")
+    return uid
+
+def update_last_activity(uid: str):
+    registry = load_registry()
+    for p in registry.get("profiles", []):
+        if p["uid"] == uid:
+            p["last_activity"] = datetime.now().isoformat()
+            save_registry(registry)
+            return
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BIOGRAPHY + LIVE MEMORY — §12, v5.1
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _load_bio(folder: Path, uid: str, alias: str = "Ребёнок") -> dict:
+    bio_path = folder / "biography.json"
+    if bio_path.exists():
+        bio = json.loads(bio_path.read_text(encoding="utf-8"))
+    else:
+        bio = {"uid": uid, "child_name": alias, "created_at": datetime.now().isoformat(),
+               "updated_at": datetime.now().isoformat(), "total_stories": 0,
+               "memory_depth": "infinite", "karmic_trail": [], "character_bonds": {},
+               "world_knowledge": [], "emotional_milestones": [],
+               "psychological_patterns": [], "live_dialogues": []}
+    bio.setdefault("uid", uid)
+    bio.setdefault("memory_depth", "infinite")
+    bio.setdefault("live_dialogues", [])
+    return bio
+
+def _save_bio(folder: Path, bio: dict):
+    bio["updated_at"] = datetime.now().isoformat()
+    bio["total_stories"] = len(bio.get("karmic_trail", []))
+    (folder / "biography.json").write_text(json.dumps(bio, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def update_biography(uid: str, entry: dict):
+    folder = resolve_uid(uid)
+    if not folder: return
+    profile = get_profile_by_uid(uid)
+    alias = profile.get("alias", "Ребёнок") if profile else "Ребёнок"
+    bio = _load_bio(folder, uid, alias)
+    bio["karmic_trail"].append(entry)
+    for char in entry.get("characters_met", []):
+        bio["character_bonds"][char] = bio["character_bonds"].get(char, 0) + 1
+    _save_bio(folder, bio)
+
+def append_choices_to_biography(uid: str, choices: list, tags: list):
+    folder = resolve_uid(uid)
+    if not folder: return
+    profile = get_profile_by_uid(uid)
+    bio = _load_bio(folder, uid, profile.get("alias", "") if profile else "")
+    if not bio.get("karmic_trail"): return
+    last = bio["karmic_trail"][-1]
+    existing = last.get("choices_made", [])
+    existing.extend([{"choice_id": c, "source": "nightbeacon"} for c in choices])
+    last["choices_made"] = existing
+    for tag in tags:
+        if tag not in bio.get("psychological_patterns", []):
+            bio.setdefault("psychological_patterns", []).append(tag)
+    _save_bio(folder, bio)
+
+def live_record_dialogue(child_name: str, uid: Optional[str], scene_id: str,
+                         child_text: str, ai_text: str):
+    folder = resolve_uid(uid) if uid else _find_child_folder(child_name)
+    if not folder: return
+    resolved_uid = uid or find_uid_by_name(child_name) or "unknown"
+    profile = get_profile_by_uid(resolved_uid) if resolved_uid != "unknown" else None
+    bio = _load_bio(folder, resolved_uid, profile.get("alias", child_name) if profile else child_name)
+    bio["live_dialogues"].append({
+        "ts": datetime.now().isoformat(), "scene_id": scene_id,
+        "child_said": child_text[:200], "iskra_said": ai_text[:200],
+    })
+    if len(bio["live_dialogues"]) > 500:
+        bio["live_dialogues"] = bio["live_dialogues"][-500:]
+    KNOWN_CHARS = ["искорка", "эйрик", "лока", "петя", "петей"]
+    text_lower = child_text.lower()
+    for cn in KNOWN_CHARS:
+        if cn in text_lower:
+            norm = cn.capitalize().replace("Петей", "Петя")
+            bio["character_bonds"][norm] = bio["character_bonds"].get(norm, 0) + 1
+    _save_bio(folder, bio)
+    print(f"[LIVE] 📝 {child_name} в {scene_id}: «{child_text[:40]}»")
+
+def ensure_basket(child_name: str, uid: Optional[str], scene_id: str, ai_text: str):
+    folder = resolve_uid(uid) if uid else _find_child_folder(child_name)
+    if not folder: return
+    basket_path = folder / "basket.json"
+    if basket_path.exists(): return
+    basket = {
+        "created_at": datetime.now().isoformat(),
+        "story_theme": "Сад Памяти", "task_context": "Диалог с Искоркой",
+        "parent_insights": ["Ребёнок активно взаимодействует с Искоркой",
+                            "Диалог идёт через голосовой интерфейс"],
+        "bridge_to_reality": {
+            "conversation_starters": [
+                f"Спроси у {child_name}: что тебе сегодня рассказала Искорка?",
+                "Попробуйте вместе вспомнить любимый момент дня.",
+            ],
+            "activities": [
+                "Нарисуйте вместе Сад Памяти — каждый цветок = одно воспоминание",
+                "Перед сном вспомните 3 хороших момента за день",
+            ],
+        },
+        "next_story_hints": {"suggested_theme": "Дружба и новые знакомства"},
+    }
+    basket_path.write_text(json.dumps(basket, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[BASKET] ✅ Создан для {child_name}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# УТИЛИТЫ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def load_agent_prompt(agent_id: str) -> str:
+    for pp in [MODULES_PATH / agent_id / "forge" / "prompt.md", MODULES_PATH / agent_id / "prompt.md"]:
+        if pp.exists(): return pp.read_text(encoding="utf-8")
+    return f"Ты агент {agent_id}. Выполни задачу качественно."
+
+def load_agent_anchor(agent_id: str) -> str:
+    ap = MODULES_PATH / agent_id / "core" / "anchor_points.md"
+    return ap.read_text(encoding="utf-8") if ap.exists() else ""
+
+async def call_openrouter(system_prompt: str, user_prompt: str,
+                           max_tokens: int = 4000, temperature: float = 0.7) -> str:
+    if not OPENROUTER_API_KEY: raise HTTPException(500, "OPENROUTER_API_KEY не задан")
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        r = await client.post(OPENROUTER_URL,
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json",
+                     "HTTP-Referer": "https://grondheim.local", "X-Title": "Living Book Grondheim"},
+            json={"model": OPENROUTER_MODEL, "max_tokens": max_tokens, "temperature": temperature,
+                  "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]})
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"].strip()
+
+def extract_json_from_response(raw: str) -> dict:
+    for pattern in [r"SYSTEM_JSON_START\s*(.*?)\s*SYSTEM_JSON_END", r"```json\s*(.*?)\s*```"]:
+        m = re.search(pattern, raw, re.DOTALL)
+        if m:
+            try: return json.loads(m.group(1).strip())
+            except: pass
+    for start in [raw.find("{"), raw.find("[")]:
+        if start >= 0:
+            try: return json.loads(raw[start:])
+            except: pass
+    return {}
+
+def _find_child_folder(name: str) -> Optional[Path]:
+    if not BOOKS_DIR.exists(): return None
+    for d in BOOKS_DIR.iterdir():
+        if d.is_dir() and d.name.lower() == name.lower(): return d
+    return None
+
+def _find_book_path(child_name: str) -> Optional[Path]:
+    for p in [BOOKS_DIR / child_name / "book.json", BOOKS_DIR / child_name.lower() / "book.json",
+              BOOKS_DIR / child_name.lower().replace(" ", "_") / "book.json"]:
+        if p.exists(): return p
+    if BOOKS_DIR.exists():
+        t = child_name.lower().replace(" ", "_")
+        for e in BOOKS_DIR.iterdir():
+            if e.is_dir() and e.name.lower().replace(" ", "_") == t:
+                p = e / "book.json"
+                if p.exists(): return p
+    return None
+
+def _find_book_path_by_uid(uid: str) -> Optional[Path]:
+    folder = resolve_uid(uid)
+    if folder:
+        bp = folder / "book.json"
+        if bp.exists(): return bp
+    return None
+
+def _find_stories_folder(child_name: str) -> Optional[Path]:
+    sr = BASE_DIR / "stories"
+    if not sr.exists(): return None
+    for candidate in [sr / child_name, sr / child_name.lower().replace(" ", "_")]:
+        if candidate.exists(): return candidate
+    t = child_name.lower().replace(" ", "_")
+    for e in sr.iterdir():
+        if e.is_dir() and e.name.lower().replace(" ", "_") == t: return e
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SET + ПАЙПЛАЙН
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SET_SYSTEM_PROMPT = """Ты — Сет, Главный оркестратор студии SIX FINGERS.
+Серверный диспетчер-робот. Принимаешь данные → формируешь MASTER BRIEF.
+Цех: living_book. Следующий: A00 (Фабула Фейн). Ты НЕ пишешь истории.
+ОБЯЗАТЕЛЬНО: creative_soul (feel, world, forbidden, purpose).
+Формат: между тегами SYSTEM_JSON_START и SYSTEM_JSON_END."""
+
+PIPELINE_AGENTS = ["A01","A02","A03","A04","A05","A06","A07","A08",
+                   "A09","A10","A11","A12","A13","A14","A15","A16"]
+MAX_REVISION_LOOPS = 3
+
+async def run_genesis(master_brief: dict) -> tuple[str, dict]:
+    brief_json = json.dumps(master_brief, ensure_ascii=False, indent=2)
+    revision_notes = ""
+    for loop in range(MAX_REVISION_LOOPS):
+        a00_prompt = load_agent_prompt("A00")
+        a00_anchor = load_agent_anchor("A00")
+        ctx = f"MASTER BRIEF:\n{brief_json}\n"
+        if revision_notes: ctx += f"\n⚠️ ЗАМЕЧАНИЯ:\n{revision_notes}\n"
+        if a00_anchor: ctx = a00_anchor + "\n\n" + ctx
+        print(f"  [GENESIS] A00 (петля {loop+1})...")
+        a00_raw = await call_openrouter(a00_prompt, ctx)
+        a00a_prompt = load_agent_prompt("A00a")
+        a00a_anchor = load_agent_anchor("A00a")
+        a00a_ctx = f"РЕЗУЛЬТАТ:\n{a00_raw}\n\nBRIEF:\n{brief_json}"
+        if a00a_anchor: a00a_ctx = a00a_anchor + "\n\n" + a00a_ctx
+        a00a_raw = await call_openrouter(a00a_prompt, a00a_ctx)
+        a00a_meta = extract_json_from_response(a00a_raw)
+        mo = a00a_meta.get("my_output", a00a_meta)
+        if "APPROVED" in mo.get("verdict", "APPROVED").upper():
+            return a00_raw, a00a_meta
+        revision_notes = mo.get("revision_notes", "")
+        recs = mo.get("recommendations", [])
+        if recs: revision_notes += "\n" + "\n".join(f"{i+1}. {r}" for i, r in enumerate(recs))
+    return a00_raw, {"my_output": {"verdict": "APPROVED_WITH_NOTES"}}
+
+async def run_full_pipeline(master_brief: dict) -> dict:
+    results = {}
+    a00_raw, a00a_meta = await run_genesis(master_brief)
+    results["A00"] = a00_raw; results["A00a"] = a00a_meta
+    chain = f"--- A00 ---\n{a00_raw[:3000]}\n--- A00a ---\n{a00a_meta.get('my_output',{}).get('verdict','OK')}\n"
+    for aid in PIPELINE_AGENTS:
+        prompt = load_agent_prompt(aid)
+        if prompt.startswith("Ты агент") and len(prompt) < 100:
+            results[aid] = {"status": "stub"}; continue
+        print(f"  [PIPELINE] {aid}...")
+        try:
+            anchor = load_agent_anchor(aid)
+            ctx = (anchor + "\n\n" if anchor else "") + f"BRIEF:\n{json.dumps(master_brief, ensure_ascii=False, indent=2)}\n\nПРЕДЫДУЩИЕ:\n{chain[-6000:]}\n"
+            raw = await call_openrouter(prompt, ctx, max_tokens=4000)
+            results[aid] = raw
+            meta = extract_json_from_response(raw)
+            mo = meta.get("my_output", {})
+            chain += f"\n--- {aid} ---\n{json.dumps(mo, ensure_ascii=False)[:1500] if mo else raw[:1000]}\n"
+        except Exception as e:
+            results[aid] = {"status": "error", "error": str(e)}
+    return results
+
+def extract_book_package(results: dict) -> dict:
+    a16 = results.get("A16", "")
+    if isinstance(a16, dict): return a16
+    pkg = {}
+    for fn, content in re.findall(r'### === FILE:\s*(.+?)\s*===\s*\n```json\s*\n(.*?)\n```', a16, re.DOTALL):
+        try: pkg[fn.strip()] = json.loads(content)
+        except: pkg[fn.strip()] = content
+    if not pkg:
+        meta = extract_json_from_response(a16)
+        if meta: pkg = meta
+    return pkg
+
+def save_book_package(uid: str, child_name: str, package: dict, master_brief: dict) -> Path:
+    folder = resolve_uid(uid) or BOOKS_DIR / child_name.lower().replace(" ", "_")
+    folder.mkdir(parents=True, exist_ok=True)
+    for fn, content in package.items():
+        fp = folder / fn; fp.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, (dict, list)):
+            if fn == "book.json" and isinstance(content, dict): content["uid"] = uid
+            fp.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")
+        else: fp.write_text(str(content), encoding="utf-8")
+    (folder / "_master_brief.json").write_text(json.dumps(master_brief, ensure_ascii=False, indent=2), encoding="utf-8")
+    profile = get_profile_by_uid(uid)
+    pk = profile["folder"].lower().replace(" ", "_") if profile else child_name.lower().replace(" ", "_")
+    pd = BASE_DIR / "stories" / pk; pd.mkdir(parents=True, exist_ok=True)
+    (pd / f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}_pending.json").write_text(
+        json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8")
+    return folder
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ЭНДПОИНТЫ — СХЕМЫ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class GenerateRequest(BaseModel):
+    child_name: str
+    child_age: Optional[str] = "7-12"
+    task_context: str
+    uid: Optional[str] = None
+
+class FreeTalkRequest(BaseModel):
+    child_text: str
+    scene_id: str
+    chapter_id: str = ""
+    child_name: str = "Ребёнок"
+    uid: Optional[str] = None
+    session_id: str = ""
+
+class AddChildRequest(BaseModel):
+    name: str
+    age_group: str = "7-12"
+    personality: Optional[str] = None  # "active", "quiet", "curious"
+
+class BeaconEvent(BaseModel):
+    type: str
+    ts: int
+    choice_id: Optional[str] = None
+    tag: Optional[str] = None
+
+class BeaconBatch(BaseModel):
+    device_id: str
+    session_id: str
+    synced_at: str
+    uid: Optional[str] = None
+    events: list[BeaconEvent]
+    llm_stats: Optional[dict] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REGISTRY ENDPOINTS (§10) + ADD CHILD (v5.2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/registry")
+async def get_registry():
+    return load_registry()
+
+@app.get("/api/registry/{uid}")
+async def get_registry_profile(uid: str):
+    profile = get_profile_by_uid(uid)
+    if not profile: raise HTTPException(404, f"Профиль {uid} не найден")
+    return profile
+
+@app.post("/api/registry/add_child")
+async def add_child(req: AddChildRequest):
+    """
+    v5.2: Создание нового профиля ребёнка из Кабинета Родителя.
+    Создаёт: запись в registry.json + папку + child_profile.json + biography.json
+    """
+    # Проверяем нет ли уже
+    existing = find_uid_by_name(req.name)
+    if existing:
+        return {"ok": True, "uid": existing, "message": "Профиль уже существует", "created": False}
+
+    uid = ensure_registry_entry(req.name, req.age_group)
+
+    # Создаём папку и базовые файлы
+    folder = resolve_uid(uid)
+    if not folder:
+        folder = BOOKS_DIR / req.name
+        folder.mkdir(parents=True, exist_ok=True)
+
+    # child_profile.json
+    profile_data = {
+        "child_name": req.name,
+        "created_at": datetime.now().isoformat(),
+        "age_group": req.age_group,
+        "personality": req.personality or "curious",
+        "total_sessions": 0,
+        "total_choices_made": 0,
+        "psychological_patterns": [],
+        "growth_zones": [],
+        "sessions": [],
+        "updated_at": datetime.now().isoformat(),
+    }
+    (folder / "child_profile.json").write_text(
+        json.dumps(profile_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # biography.json
+    bio = _load_bio(folder, uid, req.name)
+    _save_bio(folder, bio)
+
+    # chapters/
+    (folder / "chapters").mkdir(exist_ok=True)
+    (folder / "characters").mkdir(exist_ok=True)
+
+    print(f"[ADD_CHILD] ✅ {req.name} ({req.age_group}) → uid={uid}")
+
+    return {
+        "ok": True,
+        "uid": uid,
+        "name": req.name,
+        "age_group": req.age_group,
+        "folder": str(folder),
+        "created": True,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ГЕНЕРАЦИЯ КНИГИ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/studio/generate")
+async def generate_book(req: GenerateRequest):
+    print(f"\n{'='*60}\n📖 ЗАКАЗ: {req.child_name}, {req.child_age}, {req.task_context}\n{'='*60}")
+    uid = req.uid or ensure_registry_entry(req.child_name, req.child_age or "7-12")
+    print(f"  🆔 uid: {uid}")
+    set_raw = await call_openrouter(SET_SYSTEM_PROMPT,
+        f"Ребёнок: {req.child_name}, {req.child_age}. Задача: {req.task_context}", max_tokens=800)
+    master_brief = extract_json_from_response(set_raw)
+    if not master_brief: raise HTTPException(422, f"SET fail: {set_raw[:300]}")
+    master_brief.setdefault("child_name", req.child_name)
+    master_brief.setdefault("child_age", req.child_age)
+    master_brief.setdefault("task_context", req.task_context)
+    master_brief["uid"] = uid
+    results = await run_full_pipeline(master_brief)
+    package = extract_book_package(results)
+    book_dir = save_book_package(uid, req.child_name, package, master_brief) if package else None
+    update_biography(uid, {
+        "date": datetime.now().isoformat(),
+        "story_id": f"story_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "theme": master_brief.get("theme", ""), "task_context": master_brief.get("task_context", ""),
+        "emotional_goal": master_brief.get("emotional_goal", ""), "characters_met": [],
+        "choices_made": [], "key_message": master_brief.get("purpose", ""),
+        "world": master_brief.get("world", ""),
+    })
+    update_last_activity(uid)
+    with sqlite3.connect(BEACON_DB) as conn:
+        conn.execute("INSERT INTO generated_scenes (child_name,child_age,task_context,set_brief,generated_at,file_path) VALUES (?,?,?,?,?,?)",
+            (req.child_name, req.child_age, req.task_context, json.dumps(master_brief, ensure_ascii=False),
+             datetime.now().isoformat(), str(book_dir) if book_dir else ""))
+    print(f"🎉 ГОТОВО! uid={uid}\n")
+    return {"ok": True, "uid": uid, "child_name": req.child_name,
+            "book_dir": str(book_dir) if book_dir else None,
+            "agents_completed": len([r for r in results.values() if not (isinstance(r, dict) and r.get("status") in ("stub","error"))]),
+            "master_brief": master_brief}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FREE TALK — v5.2: ВОЗРАСТНАЯ ДНК + ЖИВАЯ ЗАПИСЬ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SAFETY_KEYWORDS = ["помогите", "спасите", "умереть", "убить", "кровь", "наркотик", "секс", "порно"]
+
+@app.post("/api/free_talk")
+async def free_talk(req: FreeTalkRequest):
+    """
+    v5.2: Динамический промпт по возрасту + живая запись в biography.
+    Маяк читает age_group → подмешивает возрастную парадигму в system prompt.
+    """
+    text_lower = req.child_text.lower()
+    if any(kw in text_lower for kw in SAFETY_KEYWORDS):
+        return {"text": "Давай поговорим о чём-то другом, хорошо?", "color": "yellow", "blocked": True}
+
+    # v5.2: Возрастная ДНК — динамический промпт
+    age_addon = get_age_paradigm(req.child_name, req.uid)
+
+    system_prompt = f"""Ты — Искорка, тёплый спутник ребёнка в мире Грондхейм.
+Отвечай ТОЛЬКО текст для ребёнка, без JSON, без скобок, без технических пометок.
+
+{age_addon}"""
+
+    user_prompt = f"""Ребёнок {req.child_name} в сцене {req.scene_id} сказал: «{req.child_text}»
+
+Ответь согласно возрастной парадигме выше."""
+
+    ai_text = "Я тебя слышу... Расскажи ещё раз?"
+    try:
+        ai_text = await call_openrouter(system_prompt, user_prompt, max_tokens=150, temperature=0.8)
+    except Exception as e:
+        print(f"[FREE_TALK] LLM error: {e}")
+
+    # v5.1: живая запись
+    try:
+        live_record_dialogue(req.child_name, req.uid, req.scene_id, req.child_text, ai_text)
+        ensure_basket(req.child_name, req.uid, req.scene_id, ai_text)
+    except Exception as e:
+        print(f"[LIVE] ⚠️ {e}")
+
+    return {"text": ai_text, "color": "cyan", "cached": False}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UID-МАРШРУТЫ (v2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/beacon/uid/{uid}/meta")
+async def get_book_meta_by_uid(uid: str):
+    bp = _find_book_path_by_uid(uid)
+    if not bp: raise HTTPException(404)
+    data = json.loads(bp.read_text(encoding="utf-8"))
+    update_last_activity(uid)
+    p = get_profile_by_uid(uid)
+    data["_alias"] = p.get("alias", "") if p else ""
+    return data
+
+@app.get("/api/beacon/uid/{uid}/chapters/{chapter_id}")
+async def get_chapter_by_uid(uid: str, chapter_id: str):
+    folder = resolve_uid(uid)
+    if not folder: raise HTTPException(404)
+    cf = folder / "chapters" / f"{chapter_id}.json"
+    if not cf.exists():
+        cd = folder / "chapters"
+        if cd.exists():
+            for f in cd.iterdir():
+                if f.stem.lower() == chapter_id.lower(): cf = f; break
+    if not cf.exists(): raise HTTPException(404)
+    update_last_activity(uid)
+    return json.loads(cf.read_text(encoding="utf-8"))
+
+@app.get("/api/beacon/uid/{uid}/stories")
+async def get_stories_by_uid(uid: str):
+    p = get_profile_by_uid(uid)
+    if not p: raise HTTPException(404)
+    sd = BASE_DIR / "stories" / p["folder"].lower().replace(" ", "_")
+    if not sd.exists(): return []
+    return [{"story_id": f.stem.replace("_pending",""), "title": json.loads(f.read_text(encoding="utf-8")).get("title","?"),
+             "created_at": datetime.fromtimestamp(f.stat().st_mtime).isoformat()} for f in sd.glob("*_pending.json")]
+
+@app.get("/api/parent/uid/{uid}/{category}")
+async def get_parent_data_by_uid(uid: str, category: str):
+    folder = resolve_uid(uid)
+    if not folder: raise HTTPException(404)
+    tf = folder / f"{category}.json"
+    if not tf.exists(): raise HTTPException(404, f"{category}.json не найден")
+    return json.loads(tf.read_text(encoding="utf-8"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ОБРАТНАЯ СОВМЕСТИМОСТЬ (v1)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/beacon/stories/{child_name}/meta")
+async def get_book_meta(child_name: str):
+    bp = _find_book_path(child_name)
+    if not bp: raise HTTPException(404)
+    ensure_registry_entry(child_name)
+    return json.loads(bp.read_text(encoding="utf-8"))
+
+@app.get("/api/beacon/stories/{child_name}/chapters/{chapter_id}")
+async def get_chapter(child_name: str, chapter_id: str):
+    bp = _find_book_path(child_name)
+    if not bp: raise HTTPException(404)
+    cf = bp.parent / "chapters" / f"{chapter_id}.json"
+    if not cf.exists():
+        cd = bp.parent / "chapters"
+        if cd.exists():
+            for f in cd.iterdir():
+                if f.stem.lower() == chapter_id.lower(): cf = f; break
+    if not cf.exists(): raise HTTPException(404)
+    return json.loads(cf.read_text(encoding="utf-8"))
+
+@app.get("/api/beacon/stories/{child_name}")
+async def get_stories_for_child(child_name: str):
+    sd = _find_stories_folder(child_name)
+    if not sd: return []
+    return [{"story_id": f.stem.replace("_pending",""), "title": json.loads(f.read_text(encoding="utf-8")).get("title","?"),
+             "created_at": datetime.fromtimestamp(f.stat().st_mtime).isoformat()} for f in sd.glob("*_pending.json")]
+
+@app.get("/api/parent/{category}/{child_name}")
+async def get_parent_data(category: str, child_name: str):
+    cd = _find_child_folder(child_name)
+    if not cd: raise HTTPException(404)
+    tf = cd / f"{category}.json"
+    if not tf.exists(): raise HTTPException(404)
+    return json.loads(tf.read_text(encoding="utf-8"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# НОЧНОЙ МАЯК + QUICK SCENE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/beacon")
+async def receive_beacon(batch: BeaconBatch):
+    with sqlite3.connect(BEACON_DB) as conn:
+        conn.execute("INSERT INTO sync_log (device_id,session_id,synced_at,event_count) VALUES (?,?,?,?)",
+            (batch.device_id, batch.session_id, batch.synced_at, len(batch.events)))
+        choices, tags = [], []
+        for ev in batch.events:
+            ts = datetime.utcfromtimestamp(ev.ts/1000).isoformat()
+            if ev.type == "tag" and ev.tag:
+                conn.execute("INSERT INTO aggregate_tags (device_id,tag,ts) VALUES (?,?,?)", (batch.device_id, ev.tag, ts))
+                tags.append(ev.tag)
+            elif ev.type == "choice" and ev.choice_id:
+                conn.execute("INSERT INTO aggregate_choices (device_id,choice_id,ts) VALUES (?,?,?)", (batch.device_id, ev.choice_id, ts))
+                choices.append(ev.choice_id)
+        if batch.llm_stats:
+            conn.execute("INSERT OR REPLACE INTO llm_metrics (device_id,session_id,total_requests,cache_hits,estimated_tokens,ts) VALUES (?,?,?,?,?,?)",
+                (batch.device_id, batch.session_id, batch.llm_stats.get("total_requests",0), batch.llm_stats.get("cache_hits",0), batch.llm_stats.get("estimated_tokens",0), batch.synced_at))
+    if batch.uid and (choices or tags):
+        append_choices_to_biography(batch.uid, choices, tags)
+    return {"ok": True, "received": len(batch.events)}
+
+@app.post("/api/studio/quick_scene")
+async def quick_scene(req: GenerateRequest):
+    uid = req.uid or ensure_registry_entry(req.child_name, req.child_age or "7-12")
+    set_raw = await call_openrouter(SET_SYSTEM_PROMPT, f"Ребёнок: {req.child_name}, {req.child_age}. Задача: {req.task_context}", max_tokens=600)
+    mb = extract_json_from_response(set_raw); mb["uid"] = uid
+    fabula_raw = await call_openrouter(load_agent_prompt("A00"), f"BRIEF:\n{json.dumps(mb, ensure_ascii=False, indent=2)}", max_tokens=2000)
+    PERSONAL_DIR.mkdir(parents=True, exist_ok=True)
+    fp = PERSONAL_DIR / f"{req.child_name.lower().replace(' ','_')}_personal_scene.json"
+    sd = extract_json_from_response(fabula_raw) or {"raw": fabula_raw}
+    sd["_master_brief"] = mb; sd["uid"] = uid
+    fp.write_text(json.dumps(sd, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "uid": uid, "scene": sd}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# СТАТИСТИКА И ЗДОРОВЬЕ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/stats")
+def stats():
+    with sqlite3.connect(BEACON_DB) as conn:
+        devices = conn.execute("SELECT COUNT(DISTINCT device_id) FROM sync_log").fetchone()[0]
+        syncs = conn.execute("SELECT COUNT(*) FROM sync_log").fetchone()[0]
+        generated = conn.execute("SELECT COUNT(*) FROM generated_scenes").fetchone()[0]
+        top_tags = conn.execute("SELECT tag, COUNT(*) as c FROM aggregate_tags GROUP BY tag ORDER BY c DESC LIMIT 10").fetchall()
+    registry = load_registry()
+    return {"total_devices": devices, "total_syncs": syncs, "total_generated_books": generated,
+            "total_profiles": len(registry.get("profiles", [])),
+            "top_tags": [{"tag": r[0], "count": r[1]} for r in top_tags]}
+
+@app.get("/health")
+def health():
+    agents = 0
+    if MODULES_PATH.exists():
+        agents = sum(1 for d in MODULES_PATH.iterdir() if d.is_dir() and d.name.startswith("A"))
+    registry = load_registry()
+    return {"status": "ok", "version": "5.2.0", "protocol": "v2.0", "model": OPENROUTER_MODEL,
+            "api_key_set": bool(OPENROUTER_API_KEY), "agents_available": agents,
+            "books_dir": str(BOOKS_DIR), "registry_profiles": len(registry.get("profiles", []))}
+
+
+# ─── РАЗДАЧА СТАТИКИ (убирает зависимость от Live Server) ────────────────────
+from fastapi.staticfiles import StaticFiles
+
+PLAYER_DIR    = BASE_DIR.parent / "player"
+DASHBOARD_DIR = BASE_DIR.parent / "dashboard"
+
+# ВАЖНО: mount ПОСЛЕ всех @app.get/@app.post, иначе перекроет API-маршруты
+if PLAYER_DIR.exists():
+    app.mount("/player", StaticFiles(directory=str(PLAYER_DIR), html=True), name="player")
+if DASHBOARD_DIR.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
+
+
+# ─── ИНИЦИАЛИЗАЦИЯ ───────────────────────────────────────────────────────────
+
+def init_db():
+    with sqlite3.connect(BEACON_DB) as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT NOT NULL, session_id TEXT NOT NULL, synced_at TEXT NOT NULL, event_count INTEGER);
+            CREATE TABLE IF NOT EXISTS aggregate_tags (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT NOT NULL, tag TEXT NOT NULL, ts TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS aggregate_choices (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT NOT NULL, choice_id TEXT NOT NULL, ts TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS generated_scenes (id INTEGER PRIMARY KEY AUTOINCREMENT, child_name TEXT NOT NULL, child_age TEXT, task_context TEXT, set_brief TEXT, generated_at TEXT NOT NULL, file_path TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS llm_metrics (id INTEGER PRIMARY KEY AUTOINCREMENT, device_id TEXT NOT NULL, session_id TEXT NOT NULL, total_requests INTEGER DEFAULT 0, cache_hits INTEGER DEFAULT 0, estimated_tokens INTEGER DEFAULT 0, ts TEXT NOT NULL);
+        """)
+init_db()
+
+if __name__ == "__main__":
+    import uvicorn
+    registry = load_registry()
+    print("🚀 Живая Книга — Сервер v5.2 (Возрастная ДНК)")
+    print(f"🤖 {OPENROUTER_MODEL} | 📖 {BOOKS_DIR} | 🆔 {len(registry.get('profiles',[]))} профилей")
+    if PLAYER_DIR.exists():
+        print(f"📺 Искорка:  http://127.0.0.1:8001/player/index.html")
+    if DASHBOARD_DIR.exists():
+        print(f"📊 Кабинет:  http://127.0.0.1:8001/dashboard/index.html")
+    print("⚠️  НЕ используй Live Server (порт 5500) — он перезагружает Искорку!")
+    uvicorn.run(app, host="0.0.0.0", port=8001)

@@ -1,25 +1,42 @@
 {
-  "id": "grondheim_book_01",
-  "title": "Сад Памяти",
-  "description": "История о мальчике Жене, который грустит по своему другу Пете. Искорка помогает ему отправиться в Сад Памяти, где каждое воспоминание превращается в сияющий Цветок Памяти.",
+  "id": "LB-2026-04-05-0001",
+  "title": "Новый друг в Волшебном Лесу",
+  "description": "В Волшебном Лесу Дружбы, где каждое дерево имеет свою историю, а цветы поют песни, Женя встречает необычного нового жителя — Петю. Петя только что 'расцвёл' в этом лесу, и его домик-цветок ещё совсем новый. Женя может помочь Пете освоиться, узнать его и подружиться, открывая для себя новые, удивительные истории и возможности.",
   "age_group": "7-12",
   "language": "ru",
   "version": "1.0.0",
   "created_by": "Six Fingers Studio",
   "chapters": [
-    { "id": "ch01", "title": "Тропинка к Саду", "file": "chapters/ch01.json" }
+    {
+      "id": "ch01",
+      "title": "Знакомство с Петей",
+      "file": "chapters/ch01.json"
+    }
   ],
   "characters": [
-    { "id": "iskorka", "file": "characters/iskorka.json" }
+    {
+      "id": "iskorka",
+      "file": "characters/iskorka.json"
+    },
+    {
+      "id": "petya",
+      "file": "characters/petya.json"
+    }
   ],
   "starting_chapter": "ch01",
   "starting_scene": "scene_01",
   "global_intents": {
     "emergency_stop": {
-      "keywords": ["помогите", "спасите", "мне плохо", "больно", "умереть"],
+      "keywords": [
+        "помогите",
+        "спасите",
+        "мне плохо",
+        "больно"
+      ],
       "action": "pause_game_until_adult",
       "reply_text": "Я рядом. Сейчас позову взрослого.",
       "notify_parent": true
     }
-  }
+  },
+  "uid": "LB-2026-04-05-0001"
 }

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<title>Искорка</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;display:flex;justify-content:center;align-items:center;height:100vh;height:100dvh;font-family:system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+canvas{position:absolute;top:0;left:0;touch-action:none}
+#status{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:#334;font-size:11px;letter-spacing:3px;text-transform:uppercase;pointer-events:none;transition:color .6s;white-space:nowrap}
+#caption{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);color:rgba(0,200,255,.4);font-size:14px;max-width:80vw;text-align:center;pointer-events:none;transition:opacity .8s;opacity:0;line-height:1.6}
+#emergency{display:none;position:absolute;inset:0;background:rgba(0,0,0,.94);flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:100}
+#emergency.on{display:flex}
+#emergency p{color:rgba(255,200,200,.9);font-size:15px;max-width:72vw;text-align:center;line-height:1.8}
+#emergency button{background:0 0;border:1px solid rgba(255,200,200,.3);color:rgba(255,200,200,.6);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:10px 24px;cursor:pointer}
+#start{position:absolute;display:flex;flex-direction:column;align-items:center;gap:16px;z-index:50}
+#start button{background:0 0;border:1px solid rgba(0,200,255,.3);color:rgba(0,200,255,.6);font-size:12px;letter-spacing:3px;text-transform:uppercase;padding:14px 32px;cursor:pointer;transition:all .4s;border-radius:24px}
+#start button:hover{border-color:rgba(0,200,255,.8);color:rgba(0,200,255,.9)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption"></div>
+<div id="status">—</div>
+<div id="emergency"><p id="em-text"></p><button id="em-btn">Взрослый рядом — продолжить</button></div>
+<div id="start"><button id="go">Зажечь Искорку</button></div>
+
+<script>
+const SERVER = 'http://127.0.0.1:8001';
+const CHILD  = new URLSearchParams(location.search).get('child') || 'Женя';
+const UID    = new URLSearchParams(location.search).get('uid') || null;
+const SID    = 'session_' + Date.now().toString(36);
+let autoListen = false;
+let gameActive = true;      // ☠️ ФИКС #2: флаг активности игры (блокировка после финала)
+let isTransitioning = false; // ☠️ ФИКС #5: защита от дублей в goScene
+
+// ══════════ SessionMemory (эмоциональный контекст) ══════════
+const SessionMemory = {
+    lastEmotion: null,
+    lastConflict: null,
+    unresolvedTopics: [],
+    recentTags: [],
+    lastSpeaker: null,
+    
+    getContext() {
+        return {
+            last_emotion: this.lastEmotion,
+            had_conflict: this.lastConflict === true,
+            unresolved_topics: this.unresolvedTopics.slice(0, 3),
+            recent_tags: this.recentTags.slice(0, 5),
+            last_speaker: this.lastSpeaker
+        };
+    },
+    
+    // ☠️ ФИКС #3: ПОЛНОСТЬЮ ПЕРЕПИСАНА — эмоции ТОЛЬКО от сервера
+    updateFromResponse(response) {
+        if (!response) return;
+        
+        if (response.detected_emotion) {
+            this.lastEmotion = response.detected_emotion;
+            console.log('[Memory] emotion (from server):', this.lastEmotion);
+        } else {
+            console.warn('[Memory] no emotion from server, keeping:', this.lastEmotion);
+        }
+        
+        if (response.conflict_detected !== undefined) {
+            this.lastConflict = response.conflict_detected;
+            console.log('[Memory] conflict (from server):', this.lastConflict);
+        }
+        
+        if (response.source_of_aggression && response.source_of_aggression !== 'none') {
+            const tag = `aggression_${response.source_of_aggression}`;
+            this.recentTags.unshift(tag);
+            if (this.recentTags.length > 10) this.recentTags.pop();
+            console.log('[Memory] aggression source (from server):', response.source_of_aggression);
+        }
+        
+        if (response.unresolved_topic) {
+            if (!this.unresolvedTopics.includes(response.unresolved_topic)) {
+                this.unresolvedTopics.unshift(response.unresolved_topic);
+                if (this.unresolvedTopics.length > 5) this.unresolvedTopics.pop();
+                console.log('[Memory] unresolved:', response.unresolved_topic);
+            }
+        }
+        
+        if (response.resolved_topic) {
+            this.unresolvedTopics = this.unresolvedTopics.filter(t => t !== response.resolved_topic);
+            console.log('[Memory] resolved:', response.resolved_topic);
+        }
+        
+        // Сохраняем для NightBeacon
+        if (response.detected_emotion) {
+            Mem.setBio('last_emotion_state', {
+                emotion: response.detected_emotion,
+                source: response.source_of_aggression || 'none',
+                ts: Date.now()
+            }).catch(e => console.warn('[Memory] save failed', e));
+        }
+    },
+    
+    reset() {
+        this.lastEmotion = null;
+        this.lastConflict = null;
+        this.unresolvedTopics = [];
+        this.recentTags = [];
+        console.log('[Memory] reset');
+    }
+};
+
+// ══════════ ПАМЯТЬ (IndexedDB) ══════════
+const Mem = (() => {
+  let db;
+  const open = () => new Promise((ok, no) => {
+    const r = indexedDB.open('iskra_fort', 2);
+    r.onupgradeneeded = e => { const d=e.target.result; ['progress','utterances','choices','tags','biography','sync_queue'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,s==='progress'||s==='biography'?{keyPath:'key'}:{autoIncrement:true});}); };
+    r.onsuccess = e => { db=e.target.result; ok(); };
+    r.onerror = () => no(r.error);
+  });
+  const tx=(s,m='readonly')=>db.transaction(s,m).objectStore(s);
+  const put=(s,d)=>new Promise((ok,no)=>{const r=tx(s,'readwrite').put(d);r.onsuccess=()=>ok();r.onerror=()=>no(r.error);});
+  const get=(s,k)=>new Promise((ok,no)=>{const r=tx(s).get(k);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>no(r.error);});
+  return {
+    open, getProgress:sid=>get('progress',sid), setProgress:(sid,ch,sc,t=0)=>put('progress',{key:sid,ch,sc,t}),
+    saveSay:(sid,text)=>put('utterances',{sid,text,ts:Date.now()}), saveChoice:(sid,cid)=>put('choices',{sid,choice_id:cid,ts:Date.now()}),
+    addTag:(sid,tag)=>put('tags',{sid,tag,ts:Date.now()}), setBio:(k,v)=>put('biography',{key:k,value:v}), getBio:k=>get('biography',k).then(r=>r?r.value:null),
+  };
+})();
+
+// ══════════ API ══════════
+function apiMeta(){return UID?`${SERVER}/api/beacon/uid/${UID}/meta`:`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/meta`;}
+function apiChapter(id){return UID?`${SERVER}/api/beacon/uid/${UID}/chapters/${encodeURIComponent(id)}`:`${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/chapters/${encodeURIComponent(id)}`;}
+
+// ══════════ КНИГА ══════════
+const Book = (() => {
+  let book=null, chapters={};
+  async function init(){const r=await fetch(apiMeta(),{signal:AbortSignal.timeout(5000)});if(!r.ok)throw new Error(r.status);book=await r.json();await loadChapter(book.starting_chapter||'ch01');console.log('[Book] OK:',book.title);}
+  async function loadChapter(id){if(chapters[id])return chapters[id];const r=await fetch(apiChapter(id));if(!r.ok)return null;const d=await r.json();if(d&&d.scenes){d._idx={};d.scenes.forEach(s=>{const sid=s.scene_id||s.id;if(sid){d._idx[sid]=s;s.scene_id=sid;}});}chapters[id]=d;return d;}
+  function getScene(chId,scId){return chapters[chId]?._idx?.[scId]||null;}
+  async function findScene(scId){for(const m of(book?.chapters||[])){const ch=await loadChapter(m.id);if(ch?._idx?.[scId])return{chId:m.id,scene:ch._idx[scId]};}return null;}
+  function start(){return{chId:book?.starting_chapter||'ch01',scId:book?.starting_scene||'scene_01'};}
+  function intents(){return book?.global_intents||{};}
+  function firstScene(chId){return chapters[chId]?.scenes?.[0]||null;}
+  return{init,getScene,findScene,start,intents,firstScene,loadChapter};
+})();
+
+// ══════════ CANVAS ══════════
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+let clr={r:0,g:200,b:255},state='idle',tick=0;
+let audioCtx,analyser,micData;
+function setColor(n){const MAP={cyan:'#00c8ff',gold:'#ffcc44',blue:'#4488ff',red:'#ff4444',green:'#44ff88',orange:'#ff8844',white:'#ffffff'};const h=MAP[n?.toLowerCase()]||n||'#00c8ff';const m=h.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);if(m)clr={r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)};}
+function rgba(a){return`rgba(${clr.r},${clr.g},${clr.b},${a})`;}
+function resize(){cv.width=innerWidth;cv.height=innerHeight;}resize();addEventListener('resize',resize);
+function draw(){requestAnimationFrame(draw);const w=cv.width,h=cv.height,mx=w/2,my=h/2;cx.fillStyle='rgba(0,0,0,.16)';cx.fillRect(0,0,w,h);tick+=state==='thinking'?.055:.035;let vol=state==='idle'?3+Math.sin(tick)*2:state==='thinking'?6+Math.sin(tick*2)*3:getVol();const r=5+vol*1.8;const g1=cx.createRadialGradient(mx,my,0,mx,my,r*5);g1.addColorStop(0,rgba(.22));g1.addColorStop(.5,rgba(.04));g1.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=g1;cx.beginPath();cx.arc(mx,my,r*5,0,Math.PI*2);cx.fill();const g2=cx.createRadialGradient(mx,my,0,mx,my,r*2.5);g2.addColorStop(0,rgba(.95));g2.addColorStop(.3,rgba(.3));g2.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=g2;cx.beginPath();cx.arc(mx,my,r*2.5,0,Math.PI*2);cx.fill();if(micData&&(state==='listening'||state==='speaking')){analyser.getByteFrequencyData(micData);cx.beginPath();for(let i=0;i<micData.length;i+=4){const a=(i/micData.length)*Math.PI*2,d=micData[i]*1.4;cx.moveTo(mx+Math.cos(a)*r,my+Math.sin(a)*r);cx.lineTo(mx+Math.cos(a)*(r+d),my+Math.sin(a)*(r+d));}cx.strokeStyle=rgba(.3);cx.lineWidth=1;cx.stroke();}if(state==='thinking'){for(let i=0;i<12;i++){const a=tick+(i/12)*Math.PI*2,d=28+Math.sin(tick*3+i)*14;cx.beginPath();cx.moveTo(mx+Math.cos(a)*r,my+Math.sin(a)*r);cx.lineTo(mx+Math.cos(a)*(r+d),my+Math.sin(a)*(r+d));cx.strokeStyle=rgba(.2);cx.lineWidth=.8;cx.stroke();}}}
+function getVol(){if(!analyser||!micData)return 0;analyser.getByteFrequencyData(micData);let s=0;for(let i=0;i<128;i++)s+=micData[i];return s/128;}
+draw();
+
+const LABELS={idle:'Коснись, чтобы говорить',listening:'Слушаю…',thinking:'Думаю…',speaking:'Говорю…'};
+function setState(s){state=s;document.getElementById('status').textContent=LABELS[s]||'';console.log('[STATE]',s);}
+function showCap(t){const e=document.getElementById('caption');e.textContent=t;e.style.opacity='1';}
+function hideCap(){document.getElementById('caption').style.opacity='0';}
+
+// ══════════════════════════════════════════════════
+// TTS — SENTENCE-BY-SENTENCE + MUTEX
+// ══════════════════════════════════════════════════
+let synthVoice=null, stt=null;
+let speakGeneration = 0;
+
+function initTTS(){const l=()=>{synthVoice=speechSynthesis.getVoices().find(v=>v.lang==='ru-RU')||null;console.log('[TTS] voice:',synthVoice?.name||'default');};speechSynthesis.onvoiceschanged=l;l();}
+
+function initSTT(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;
+  stt=new SR();stt.lang='ru-RU';stt.continuous=false;stt.interimResults=false;
+  stt.onresult=e=>onSpoke(e.results[0][0].transcript.trim());
+  stt.onerror=e=>{console.log('[STT] error:',e.error);if(e.error!=='no-speech'&&e.error!=='aborted')setState('idle');};
+  stt.onend=()=>{if(state==='listening')setState('idle');};
+}
+
+// ☠️ ФИКС #2: listen() теперь проверяет gameActive
+function listen(){
+  if(!gameActive){ console.log('[STT] game over, ignoring'); return; }
+  if(!stt)return;
+  if(state!=='idle'){console.log('[STT] skip, state=',state);return;}
+  speechSynthesis.cancel();
+  try{stt.start();setState('listening');}
+  catch(e){console.log('[STT] already running');setState('listening');}
+}
+
+function splitSentences(text){
+  const p=text.match(/[^.!?]+[.!?]+[\s]*/g);
+  if(!p)return[text];
+  return p.map(s=>s.trim()).filter(s=>s.length>0);
+}
+
+function speakOne(text, gen){
+  return new Promise(resolve=>{
+    if(gen!==speakGeneration){resolve();return;}
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='ru-RU';u.rate=0.88;u.pitch=1.05;
+    if(synthVoice)u.voice=synthVoice;
+    let done=false;
+    function finish(){if(done)return;done=true;clearTimeout(wd);resolve();}
+    u.onend=finish;
+    u.onerror=()=>{console.warn('[TTS] onerror:',text.slice(0,30));finish();};
+    const wd=setTimeout(()=>{console.warn('[TTS WD]',text.slice(0,30));speechSynthesis.cancel();finish();},15000);
+    console.log('[TTS] ▶',text.slice(0,60));
+    speechSynthesis.speak(u);
+  });
+}
+
+async function speak(text, color, onDone){
+  if(!text){if(onDone)onDone();return;}
+  const gen = ++speakGeneration;
+  speechSynthesis.cancel();
+  try{stt?.abort();}catch(e){}
+  if(color)setColor(color);
+  setState('speaking');
+  showCap(text);
+  const sentences=splitSentences(text);
+  console.log(`[TTS] speak: ${sentences.length} chunks (gen=${gen})`);
+  for(const s of sentences){
+    if(gen!==speakGeneration){console.log('[TTS] cancelled gen=',gen);break;}
+    await speakOne(s, gen);
+  }
+  if(gen!==speakGeneration)return;
+  console.log('[TTS] ✅ done gen=',gen);
+  hideCap();
+  setState('idle');
+  if(onDone){onDone();}
+  else if(autoListen && gameActive){setTimeout(listen,400);}
+}
+
+// ══════════ НАВИГАЦИЯ ══════════
+let curScene=null, curCh=null;
+let pendingTransition = null;
+
+async function playScene(scene){
+  if(!scene){setState('idle');return;}
+  curScene=scene;
+  pendingTransition = null;
+  const intro=scene.intro_event;
+  if(!intro||!intro.text){setState('idle');return;}
+  setColor(intro.ui_pulse_color||'cyan');
+  console.log('[SCENE]',scene.scene_id,scene.mode);
+  await speak(intro.text, null, ()=>{
+    if(scene.mode==='ask_choice')showCap((scene.choices||[]).map(c=>c.label).join(' · '));
+    if(autoListen && gameActive)setTimeout(listen,400);
+  });
+}
+
+// ☠️ ФИКС #5: goScene с защитой от дублей
+async function goScene(scId){
+  if(isTransitioning){
+    console.log('[GO] already transitioning, skip');
+    return;
+  }
+  isTransitioning = true;
+  
+  try {
+    console.log('[GO]', typeof scId === 'string' ? scId : JSON.stringify(scId));
+    
+    if(typeof scId==='object'&&scId!==null){
+      // ☠️ ФИКС #2: обработка end с блокировкой игры
+      if(scId.action==='end' || scId.action==='show_credits'){
+        gameActive = false;
+        autoListen = false;
+        try { stt?.abort(); } catch(e) {}
+        setState('idle');
+        document.getElementById('status').textContent = 'Конец истории';
+        speak('Спасибо, что был со мной. До встречи в Грондхейме.', 'gold');
+        return;
+      }
+      if(scId.action==='load_next_chapter'&&scId.target_chapter){
+        const ch=await Book.loadChapter(scId.target_chapter);
+        if(ch){
+          curCh=scId.target_chapter;
+          const f=Book.firstScene(scId.target_chapter);
+          if(f){
+            await Mem.setProgress(SID,scId.target_chapter,f.scene_id);
+            playScene(f);
+            return;
+          }
+        }
+        speak('Эта страница ещё создаётся волшебством, загляни завтра!','gold');
+        return;
+      }
+    }
+    
+    // Обработка строки 'end'
+    if(scId==='end'){
+      gameActive = false;
+      autoListen = false;
+      try { stt?.abort(); } catch(e) {}
+      setState('idle');
+      document.getElementById('status').textContent = 'Конец истории';
+      speak('Спасибо, что был со мной. До встречи в Грондхейме.', 'gold');
+      return;
+    }
+    
+    const found=await Book.findScene(scId);
+    if(found){
+      curCh=found.chId;
+      curScene=found.scene;
+      await Mem.setProgress(SID,found.chId,scId);
+      playScene(found.scene);
+    } else {
+      speak('Хм, тропинка пропала… Но я рядом.','cyan');
+    }
+  } finally {
+    isTransitioning = false;
+  }
+}
+
+// ☠️ ФИКС #4: countTurnAndMaybeTransition с авто-переходом
+async function countTurnAndMaybeTransition(scene) {
+  const p = await Mem.getProgress(SID);
+  const turns = (p?.t || 0) + 1;
+  await Mem.setProgress(SID, curCh, scene.scene_id, turns);
+  console.log(`[TURNS] ${scene.scene_id}: ${turns}/${scene.max_turns}`);
+  if (turns >= scene.max_turns) {
+    pendingTransition = scene.on_end?.target_scene || scene.on_end?.target_chapter || 'end';
+    console.log('[TURNS] ⚡ max_turns reached, pending transition to:', pendingTransition);
+    // Автоматический переход, если auto_start не false
+    if (scene.on_end?.auto_start !== false) {
+      const target = pendingTransition;
+      pendingTransition = null;
+      goScene(target);
+    }
+  }
+}
+
+// ══════════ ОБРАБОТКА РЕЧИ ══════════
+// ☠️ ФИКС #2: onSpoke проверяет gameActive
+async function onSpoke(text){
+  if(!gameActive){
+    console.log('[STT] game over, ignoring speech');
+    return;
+  }
+  if(!text)return;
+  console.log('[HEARD]',text);
+  setState('thinking');
+  await Mem.saveSay(SID,text);
+
+  // ========== МЯГКАЯ ГРАНИЦА ДЛЯ ОПАСНЫХ ТЕМ ==========
+  const SOFT_BOUNDARY_KEYWORDS = {
+    substances: {
+      keywords: ["покурим", "побухаем", "сигарета", "алкоголь", "вино", "пиво", "водка", "курить", "бухать"],
+      reply: "Ой, это не те слова для Волшебного Леса. Здесь мы говорим о дружбе и приключениях. Давай попробуем ещё раз?",
+      color: "gold"
+    },
+    violence: {
+      keywords: ["убить", "ударю", "сломаю", "размозжу"],
+      reply: "Такие слова могут ранить. Давай лучше расскажем, что тебя беспокоит?",
+      color: "orange"
+    }
+  };
+
+  for (const [category, rule] of Object.entries(SOFT_BOUNDARY_KEYWORDS)) {
+    if (rule.keywords.some(k => text.toLowerCase().includes(k))) {
+      console.log('[SoftBoundary] triggered:', category, 'text:', text);
+      await Mem.addTag(SID, `soft_boundary_${category}`);
+      speak(rule.reply, rule.color);
+      return;
+    }
+  }
+  // ========== КОНЕЦ МЯГКОЙ ГРАНИЦЫ ==========
+
+  const gi=Book.intents();
+  for(const[name,intent] of Object.entries(gi)){
+    if(intent.keywords.some(k=>text.toLowerCase().includes(k))){
+      if(intent.action==='pause_game_until_adult'){
+        setColor('red');document.getElementById('em-text').textContent=intent.reply_text;
+        document.getElementById('emergency').classList.add('on');
+        speak(intent.reply_text,'red');await Mem.addTag(SID,'emergency');return;
+      }
+      speak(intent.reply_text,intent.ui_pulse_color||'red');return;
+    }
+  }
+
+  const scene=curScene;
+  if(!scene){speak(`Расскажи мне, ${CHILD}.`,'cyan');return;}
+
+  if(scene.mode==='ask_choice'){
+    const t=text.toLowerCase();
+    const ch=(scene.choices||[]).find(c=>(c.keywords||[]).some(k=>t.includes(k)));
+    if(ch){
+      await Mem.saveChoice(SID,ch.id);
+      await Mem.addTag(SID,ch.memory_vector||ch.id);
+      speak('Хорошо!', null, () => goScene(ch.next_scene));
+      return;
+    }
+    const fb=scene.scripted_responses?.fallback;
+    speak(fb?.reply_text||`Скажи: ${(scene.choices||[]).map(c=>c.label).join(' или ')}?`,fb?.ui_pulse_color||'cyan');
+    return;
+  }
+
+  const sr=scene.scripted_responses||{};
+  const t=text.toLowerCase();
+  let matched=null;
+  for(const[key,resp] of Object.entries(sr)){
+    if(key==='fallback')continue;
+    if(resp.keywords&&resp.keywords.some(k=>t.includes(k.toLowerCase()))){matched=resp;break;}
+  }
+
+  if(matched){
+    if(matched.memory_vector) await Mem.addTag(SID,matched.memory_vector);
+    if(matched.memory_key) await Mem.setBio(matched.memory_key,text.slice(0,100));
+    await countTurnAndMaybeTransition(scene);
+    if (pendingTransition && scene.on_end?.auto_start !== false) {
+      const target = pendingTransition;
+      pendingTransition = null;
+      speak(matched.reply_text, matched.ui_pulse_color||'cyan', () => goScene(target));
+    } else {
+      speak(matched.reply_text, matched.ui_pulse_color||'cyan');
+    }
+    return;
+  }
+
+  try{
+    const body={child_text:text,scene_id:scene.scene_id||'unknown',chapter_id:curCh||'',child_name:CHILD,session_id:SID};
+    if(UID)body.uid=UID;
+    const r=await fetch(`${SERVER}/api/free_talk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(8000)});
+    const d=await r.json();
+    if(d.text&&!d.blocked){
+      SessionMemory.updateFromResponse(d);
+      await countTurnAndMaybeTransition(scene);
+      if (pendingTransition && scene.on_end?.auto_start !== false) {
+        const target = pendingTransition;
+        pendingTransition = null;
+        speak(d.text, d.color||'cyan', () => goScene(target));
+      } else {
+        speak(d.text, d.color||'cyan');
+      }
+      return;
+    }
+  }catch(e){console.warn('[LLM] offline');}
+
+  const fb=sr.fallback;
+  speak(fb?.reply_text||'Я тебя слышу. Расскажи ещё.',fb?.ui_pulse_color||'cyan');
+}
+
+// ══════════ ЗАПУСК ══════════
+async function boot(){
+  gameActive = true;      // ☠️ ФИКС #2: сброс флага при новом запуске
+  isTransitioning = false;
+  SessionMemory.reset();
+  
+  document.getElementById('start').style.display='none';
+  setState('thinking');
+  await Mem.open();
+  try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=256;const stream=await navigator.mediaDevices.getUserMedia({audio:true});audioCtx.createMediaStreamSource(stream).connect(analyser);micData=new Uint8Array(analyser.frequencyBinCount);}catch(e){console.warn('[Mic]',e);}
+  initSTT();initTTS();
+  try{await Book.init();const s=Book.start();curCh=s.chId;curScene=Book.getScene(s.chId,s.scId)||Book.firstScene(s.chId);speak(`Привет, ${CHILD}!`,'cyan',()=>playScene(curScene));}
+  catch(e){console.warn('[Boot]',e);speak(`Привет, ${CHILD}! Я Искорка.`,'cyan',()=>setState('idle'));}
+}
+
+document.getElementById('go').onclick=()=>{autoListen=true;boot();};
+document.getElementById('em-btn').onclick=()=>{document.getElementById('emergency').classList.remove('on');setColor('cyan');setState('idle');speak('Продолжим?','cyan');};
+cv.addEventListener('click',()=>{if(state==='idle' && gameActive)listen();});
+cv.addEventListener('touchstart',e=>{e.preventDefault();if(state==='idle' && gameActive)listen();},{passive:false});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

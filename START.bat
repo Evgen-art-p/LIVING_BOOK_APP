@@ -1,19 +1,21 @@
 @echo off
 chcp 65001 > nul
-echo 🚀 Запуск Грондхейма v4.0...
+echo Starting Grondheim v5.2...
 
-:: 1. Запуск Маяка (Сервера)
-:: Переходим в папку server и запускаем питон
-start "ГРОНДХЕЙМ: МАЯК" cmd /k "cd /d %~dp0server && python beacon_v4.py"
+:: 1. Start Beacon server
+start "GRONDHEIM BEACON" cmd /k "cd /d %~dp0server && python beacon_v4.py"
 
-:: Ждем 3 секунды на прогрев
+:: Wait 3 sec
 timeout /t 3
 
-:: 2. Открываем Кабинет Родителя
-start "" "%~dp0dashboard\index.html"
+:: 2. Open Dashboard via Beacon (port 8001)
+start "" "http://127.0.0.1:8001/dashboard/index.html"
 
-:: 3. Открываем Искорку
-start "" "%~dp0player\index.html"
+:: 3. Open Iskra via Beacon (port 8001)
+start "" "http://127.0.0.1:8001/player/index.html"
 
-echo ✅ Все системы запущены.
+echo.
+echo DO NOT use Live Server (port 5500) - it reloads Iskra!
+echo.
+echo All systems started on port 8001
 pause
