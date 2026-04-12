@@ -4,857 +4,190 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Грондхейм | Кабинет Родителя — Живая Книга v6.2</title>
-    
+    <title>Грондхейм | Кабинет Родителя — v7.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
     <style>
         * { font-family: 'Nunito', sans-serif; }
-        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.08); opacity: 1; } }
-        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse-red { 0%,100% { background-color: rgba(239,68,68,0.1); } 50% { background-color: rgba(239,68,68,0.3); } }
-        @keyframes highlight-flash { 0% { background-color: #c7d2fe; transform: scale(1); } 50% { background-color: #818cf8; transform: scale(1.02); } 100% { background-color: #c7d2fe; transform: scale(1); } }
-        
+        @keyframes orb-pulse { 0%,100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.08); opacity: 1; } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes highlight-flash { 0% { background: #c7d2fe; } 50% { background: #818cf8; } 100% { background: #c7d2fe; } }
         .orb-ring { animation: orb-pulse 3s ease-in-out infinite; }
-        .tab-content { display: none; animation: slide-up 0.3s ease; }
+        .tab-content { display: none; animation: slide-up .3s ease; }
         .tab-content.active { display: block; }
-        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 600; z-index: 1000; display: none; white-space: nowrap; }
-        .toast.show { display: block; animation: slide-up 0.2s ease; }
-        .profile-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 260px; background: white; border-radius: 20px; box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s ease; z-index: 100; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 100px; font-size: 14px; font-weight: 700; z-index: 1000; display: none; }
+        .toast.show { display: block; animation: slide-up .2s ease; }
+        .memory-item { transition: all .2s; cursor: pointer; }
+        .memory-item.highlight { animation: highlight-flash .6s ease; border-left: 4px solid #6366f1; }
+        .memory-item:hover { transform: translateX(4px); background: #f8fafc; }
+        .showcase-card { transition: all .15s; }
+        .showcase-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -6px rgba(99,102,241,.2); }
+        .profile-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 240px; background: #fff; border-radius: 20px; box-shadow: 0 20px 35px -10px rgba(0,0,0,.15); border: 1px solid #e2e8f0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all .2s; z-index: 100; }
         .profile-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0); }
-        .loader { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        /* Стили для подсветки события в памяти */
-        .memory-item {
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-        .memory-item.highlight {
-            animation: highlight-flash 0.6s ease;
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            border-left: 4px solid #6366f1;
-        }
-        .memory-item:hover {
-            transform: translateX(4px);
-            background: #f8fafc;
-        }
-        
-        /* Кастомный курсор для точек графика */
-        canvas {
-            cursor: pointer;
-        }
-        
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
-
 <div class="max-w-7xl mx-auto p-4 md:p-6">
 
-    <!-- HEADER (без изменений) -->
-    <header class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-slate-100 p-5 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-4 z-50">
-        <div>
-            <p class="text-[10px] font-black tracking-[0.3em] text-indigo-400 uppercase mb-1">Six Fingers Studio</p>
-            <h1 class="text-2xl font-black tracking-tight text-slate-900">Кабинет Родителя</h1>
-            <p class="text-sm text-slate-400 font-medium">Живая Книга • Протокол v6.2 • Артефакты и Мостики</p>
-        </div>
-        
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
-                <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center">
-                    <div class="w-4 h-4 rounded-full bg-indigo-500" id="orb-core"></div>
-                </div>
-                <div>
-                    <div class="text-xs font-black text-slate-700" id="connection-label">Проверка...</div>
-                    <div class="text-[9px] text-slate-400" id="connection-sub"></div>
-                </div>
-            </div>
-            
-            <div class="relative" id="parent-profile-wrap">
-                <button onclick="toggleParentMenu()" class="flex items-center gap-3 group">
-                    <div class="text-right hidden sm:block">
-                        <p class="text-sm font-bold text-slate-800" id="parent-name">Елена</p>
-                        <p class="text-[10px] text-green-600">● Маяк активен</p>
-                    </div>
-                    <div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white shadow-md flex items-center justify-center text-white">
-                        <span class="text-lg">👩</span>
-                    </div>
-                </button>
-                <div class="profile-dropdown" id="parent-dropdown">
-                    <div class="p-4 border-b border-slate-100">
-                        <p class="font-bold text-slate-800" id="dropdown-parent-name">Елена</p>
-                        <p class="text-xs text-slate-400">Родитель</p>
-                    </div>
-                    <div class="p-2">
-                        <button onclick="showToast('Функция в разработке')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50">✏️ Редактировать</button>
-                        <hr class="my-2 border-slate-100">
-                        <button onclick="logoutParent()" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50">🚪 Выйти</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- TABS -->
-    <div class="flex flex-wrap gap-2 mb-6 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-100 sticky top-24 z-40">
-        <button onclick="switchTab('children')" id="btn-children" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black bg-indigo-600 text-white shadow-md">👥 Дети</button>
-        <button onclick="switchTab('baskets')" id="btn-baskets" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🎁 Корзины</button>
-        <button onclick="switchTab('artifacts')" id="btn-artifacts" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">✨ Артефакты</button>
-        <button onclick="switchTab('bridges')" id="btn-bridges" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🌉 Мостики</button>
-        <button onclick="switchTab('memory')" id="btn-memory" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📜 Память</button>
-        <button onclick="switchTab('stats')" id="btn-stats" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📊 Статистика</button>
+<header class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-slate-100 p-5 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-4 z-50">
+    <div>
+        <p class="text-[10px] font-black tracking-[.3em] text-indigo-400 uppercase mb-1">Six Fingers Studio</p>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900">Кабинет Родителя</h1>
+        <p class="text-sm text-slate-400 font-medium">Живая Книга • STANDARD v3.0 • <span id="beacon-version">…</span></p>
     </div>
-
-    <!-- ==================== TAB: ДЕТИ (без изменений) ==================== -->
-    <div class="tab-content active" id="tab-children">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">👥 <span>Выбор профиля</span></h2>
-            <select id="child-selector" class="w-full md:w-96 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-lg font-bold">
-                <option value="">Загрузка...</option>
-            </select>
-            <div class="mt-4 p-4 bg-indigo-50 rounded-2xl" id="child-info">
-                <p class="text-sm text-indigo-600">Выберите ребёнка, чтобы увидеть его данные</p>
-            </div>
+    <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+            <div class="orb-ring w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-indigo-500" id="orb-core"></div></div>
+            <div><div class="text-xs font-black text-slate-700" id="connection-label">Проверка…</div><div class="text-[9px] text-slate-400" id="connection-sub"></div></div>
         </div>
-        
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">➕ <span>Добавить ребёнка</span></h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input type="text" id="new-child-name" placeholder="Имя ребёнка" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                <select id="new-child-age" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                    <option value="2-4">2-4 года</option>
-                    <option value="3-6">3-6 лет</option>
-                    <option value="5-9">5-9 лет</option>
-                    <option value="7-12" selected>7-12 лет</option>
-                    <option value="13+">13+ лет</option>
-                </select>
-                <button onclick="addChild()" class="bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition">➕ Добавить</button>
-            </div>
-            <div id="add-child-result" class="mt-4"></div>
+        <div class="relative" id="parent-profile-wrap">
+            <button onclick="toggleMenu()" class="flex items-center gap-3">
+                <div class="text-right hidden sm:block"><p class="text-sm font-bold text-slate-800">Родитель</p><p class="text-[10px] text-green-600" id="studio-status">●</p></div>
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 border-2 border-white shadow-md flex items-center justify-center text-white text-lg">👩</div>
+            </button>
+            <div class="profile-dropdown" id="parent-dropdown"><div class="p-4 border-b border-slate-100"><p class="font-bold">Настройки</p></div><div class="p-2"><button onclick="showToast('В разработке')" class="w-full text-left px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50">✏️ Редактировать</button></div></div>
         </div>
     </div>
+</header>
 
-    <!-- ==================== TAB: КОРЗИНЫ (без изменений) ==================== -->
-    <div class="tab-content" id="tab-baskets">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">🎁 <span>Создать корзину даров</span></h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="basket-title" placeholder="Название / проблема" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                <textarea id="basket-description" rows="2" placeholder="Описание ситуации" class="bg-slate-50 border border-slate-200 rounded-2xl p-3 resize-none"></textarea>
-                <input type="text" id="basket-parent-goal" placeholder="Цель родителя" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                <select id="basket-emotion" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                    <option value="anger">😠 Гнев</option>
-                    <option value="fear">😨 Страх</option>
-                    <option value="sadness">😢 Грусть</option>
-                    <option value="joy">😊 Радость</option>
-                    <option value="curiosity">🤔 Любопытство</option>
-                </select>
-            </div>
-            <button onclick="createBasket()" class="mt-4 w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition">✦ Создать корзину ✦</button>
-            <div id="basket-result" class="mt-4"></div>
-        </div>
-        
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4">Активные корзины</h2>
-            <div id="active-baskets-list" class="space-y-3"></div>
-            
-            <h3 class="text-lg font-black mt-6 mb-3">Завершённые</h3>
-            <div id="completed-baskets-list" class="space-y-2"></div>
-        </div>
+<div class="flex flex-wrap gap-2 mb-6 bg-white/80 backdrop-blur-sm p-2 rounded-2xl border border-slate-100 sticky top-24 z-40">
+    <button onclick="switchTab('children')"  id="btn-children"  class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black bg-indigo-600 text-white shadow-md">👥 Дети</button>
+    <button onclick="switchTab('showcase')"  id="btn-showcase"  class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📚 Витрина</button>
+    <button onclick="switchTab('baskets')"   id="btn-baskets"   class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🎁 Корзина Даров</button>
+    <button onclick="switchTab('artifacts')" id="btn-artifacts" class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">✨ Артефакты</button>
+    <button onclick="switchTab('bridges')"   id="btn-bridges"   class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">🌉 Мостики</button>
+    <button onclick="switchTab('memory')"    id="btn-memory"    class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📜 Память</button>
+    <button onclick="switchTab('stats')"     id="btn-stats"     class="tab-btn px-5 py-2.5 rounded-xl text-sm font-black text-slate-500">📊 Статистика</button>
+</div>
+
+<!-- TAB: ДЕТИ -->
+<div class="tab-content active" id="tab-children">
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+        <h2 class="text-xl font-black mb-4">👥 Выбор профиля</h2>
+        <select id="child-selector" class="w-full md:w-96 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-lg font-bold"><option value="">Загрузка…</option></select>
+        <div class="mt-4 p-4 bg-indigo-50 rounded-2xl" id="child-info"><p class="text-sm text-indigo-600">Выберите ребёнка</p></div>
     </div>
-
-    <!-- ==================== TAB: АРТЕФАКТЫ (без изменений) ==================== -->
-    <div class="tab-content" id="tab-artifacts">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">✨ <span>Коллекция артефактов</span></h2>
-            <div id="artifacts-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="text-center py-10 text-slate-400 italic col-span-4">Выберите ребёнка</div>
-            </div>
-            <div class="mt-4 p-4 bg-amber-50 rounded-2xl">
-                <p class="text-sm text-amber-700 font-bold">💡 Артефакты — это награды, которые ребёнок получает в приключениях. Они навсегда остаются в коллекции.</p>
-            </div>
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+        <h2 class="text-xl font-black mb-4">➕ Зарегистрировать ребёнка</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input type="text" id="new-child-name" placeholder="Имя" class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <select id="new-child-age" class="bg-slate-50 border border-slate-200 rounded-2xl p-3"><option value="3-6">3-6 лет</option><option value="7-12" selected>7-12 лет</option><option value="13+">13+ лет</option></select>
+            <button onclick="addChild()" class="bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition">➕ Добавить</button>
         </div>
-    </div>
-
-    <!-- ==================== TAB: МОСТИКИ (без изменений) ==================== -->
-    <div class="tab-content" id="tab-bridges">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">🌉 <span>Мостики в реальность</span></h2>
-            <p class="text-sm text-slate-500 mb-4">Задания, которые ребёнок выполняет вместе с вами. После подтверждения ребёнок получает карму.</p>
-            <div id="pending-bridges-list" class="space-y-3"></div>
-            <div id="completed-bridges-list" class="mt-6 space-y-2"></div>
-        </div>
-    </div>
-
-    <!-- ==================== TAB: ПАМЯТЬ (ОБНОВЛЁН — подсветка кликов) ==================== -->
-    <div class="tab-content" id="tab-memory">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4 flex items-center gap-2">📜 <span>Биография героя</span></h2>
-            <div id="karma-display" class="mb-4 p-4 bg-indigo-50 rounded-2xl flex justify-between items-center">
-                <span class="font-bold">🌟 Текущая карма</span>
-                <span class="text-2xl font-black text-indigo-600" id="karma-value">0</span>
-            </div>
-            
-            <!-- НОВЫЙ ГРАФИК КАРМЫ -->
-            <div class="mb-6">
-                <h3 class="font-bold text-slate-700 mb-3">📈 Динамика кармы</h3>
-                <div class="bg-white p-4 rounded-2xl border border-slate-100">
-                    <canvas id="karma-canvas" height="200" style="max-height: 280px; width: 100%; cursor: pointer;"></canvas>
-                    <p class="text-[10px] text-slate-400 text-center mt-3">✨ Кликните на точку — увидите событие в ленте ниже</p>
-                </div>
-            </div>
-            
-            <!-- ЛЕНТА ПАМЯТИ (с id для подсветки) -->
-            <h3 class="font-bold text-slate-700 mb-3">📖 Хроники</h3>
-            <div id="memory-timeline" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
-        </div>
-    </div>
-
-    <!-- ==================== TAB: СТАТИСТИКА ==================== -->
-    <div class="tab-content" id="tab-stats">
-        <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 class="text-xl font-black mb-4">📊 Статистика</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="stats-metrics"></div>
-            <div class="h-64">
-                <canvas id="karma-chart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- SIDEBAR -->
-    <div class="fixed bottom-6 right-6 z-50">
-        <button onclick="refreshAll()" class="w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition flex items-center justify-center text-2xl">⟳</button>
+        <div id="add-child-result" class="mt-3"></div>
     </div>
 </div>
 
+<!-- TAB: ВИТРИНА -->
+<div class="tab-content" id="tab-showcase">
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+        <h2 class="text-xl font-black mb-2">📚 Витрина готовых книг</h2>
+        <p class="text-sm text-slate-500 mb-6">Готовые первые книги. Выберите и запустите — ребёнок сразу сможет начать в Искорке.</p>
+        <div id="showcase-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><div class="text-center py-10 text-slate-400 italic col-span-3">Загрузка…</div></div>
+        <div id="showcase-result" class="mt-4"></div>
+    </div>
+</div>
+
+<!-- TAB: КОРЗИНА ДАРОВ -->
+<div class="tab-content" id="tab-baskets">
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm mb-6">
+        <h2 class="text-xl font-black mb-2">🎁 Корзина Даров</h2>
+        <p class="text-sm text-slate-500 mb-6">Опишите ситуацию ребёнка — Грондхейм создаст книгу, которая поможет. Это главный способ заказать новую главу.</p>
+        <div class="space-y-4">
+            <div><label class="text-sm font-bold text-slate-700 mb-1 block">Что беспокоит ребёнка? *</label>
+                <input type="text" id="basket-title" placeholder="Например: боится врачей, ссорится с сестрой, завтра первый класс…" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-base"></div>
+            <div><label class="text-sm font-bold text-slate-700 mb-1 block">Расскажите подробнее</label>
+                <textarea id="basket-description" rows="3" placeholder="Опишите ситуацию своими словами. Чем подробнее — тем точнее будет книга." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 resize-none"></textarea></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="text-sm font-bold text-slate-700 mb-1 block">Чего вы хотите добиться?</label>
+                    <input type="text" id="basket-parent-goal" placeholder="Цель: чтобы не боялся, чтобы помирился…" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3"></div>
+                <div><label class="text-sm font-bold text-slate-700 mb-1 block">Эмоция ребёнка сейчас</label>
+                    <select id="basket-emotion" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                        <option value="fear">😨 Страх</option><option value="anger">😠 Гнев</option><option value="sadness">😢 Грусть</option>
+                        <option value="anxiety">😰 Тревога</option><option value="shame">😳 Стыд</option><option value="joy">😊 Радость</option><option value="curiosity">🤔 Любопытство</option>
+                    </select></div>
+            </div>
+        </div>
+        <button onclick="createBasket()" class="mt-6 w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 active:scale-[.98]">✦ Отправить в Грондхейм ✦</button>
+        <p class="text-[10px] text-slate-400 text-center mt-2">Маяк добавит память ребёнка и передаст Студии. Глава появится автоматически.</p>
+        <div id="basket-result" class="mt-4"></div>
+    </div>
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+        <h3 class="text-lg font-black mb-4">📋 Мои запросы</h3>
+        <div id="active-baskets-list" class="space-y-3 mb-6"></div>
+        <h4 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Завершённые</h4>
+        <div id="completed-baskets-list" class="space-y-2"></div>
+    </div>
+</div>
+
+<!-- TAB: АРТЕФАКТЫ -->
+<div class="tab-content" id="tab-artifacts"><div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm"><h2 class="text-xl font-black mb-4">✨ Коллекция артефактов</h2><div id="artifacts-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"><div class="text-center py-10 text-slate-400 italic col-span-4">Выберите ребёнка</div></div></div></div>
+
+<!-- TAB: МОСТИКИ -->
+<div class="tab-content" id="tab-bridges"><div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm"><h2 class="text-xl font-black mb-4">🌉 Мостики в реальность</h2><p class="text-sm text-slate-500 mb-4">Задания для ребёнка в реальном мире. Подтвердите — и он получит карму.</p><div id="pending-bridges-list" class="space-y-3"></div><h4 class="text-sm font-bold text-slate-400 uppercase tracking-widest mt-6 mb-3">Выполненные</h4><div id="completed-bridges-list" class="space-y-2"></div></div></div>
+
+<!-- TAB: ПАМЯТЬ -->
+<div class="tab-content" id="tab-memory"><div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm"><h2 class="text-xl font-black mb-4">📜 Биография героя</h2>
+    <div class="mb-4 p-4 bg-indigo-50 rounded-2xl flex justify-between items-center"><div><span class="font-bold">🌟 Карма</span><span class="text-xs text-slate-400 ml-2" id="character-info"></span></div><span class="text-2xl font-black text-indigo-600" id="karma-value">0</span></div>
+    <div class="mb-6"><h3 class="font-bold text-slate-700 mb-3">📈 Динамика кармы</h3><div class="bg-white p-4 rounded-2xl border border-slate-100"><canvas id="karma-canvas" height="200" style="max-height:280px;width:100%"></canvas><p class="text-[10px] text-slate-400 text-center mt-2">Кликните на точку — увидите событие ниже</p></div></div>
+    <h3 class="font-bold text-slate-700 mb-3">📖 Хроники</h3><div id="memory-timeline" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
+</div></div>
+
+<!-- TAB: СТАТИСТИКА -->
+<div class="tab-content" id="tab-stats"><div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm"><h2 class="text-xl font-black mb-4">📊 Статистика</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="stats-metrics"></div><div class="h-64"><canvas id="karma-chart"></canvas></div></div></div>
+
+<div class="fixed bottom-6 right-6 z-50"><button onclick="refreshAll()" class="w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition flex items-center justify-center text-2xl">⟳</button></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
-// ============================================================
-//  ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ============================================================
-const API = 'http://127.0.0.1:8001';
-let CURRENT_UID = null;
-let CURRENT_ALIAS = null;
-let REGISTRY = null;
-let karmaChart = null;
-let karmaTrendChart = null;  // для нового графика в tab-memory
-let currentKarmaHistory = []; // храним для кликов
+const API='http://127.0.0.1:8001'; let CURRENT_UID=null,CURRENT_ALIAS=null,karmaChart=null,karmaTrendChart=null;
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+function toggleMenu(){document.getElementById('parent-dropdown').classList.toggle('show')}
+document.addEventListener('click',e=>{const w=document.getElementById('parent-profile-wrap');if(w&&!w.contains(e.target))document.getElementById('parent-dropdown').classList.remove('show')});
+function switchTab(n){document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>{b.classList.remove('bg-indigo-600','text-white');b.classList.add('text-slate-500')});document.getElementById(`tab-${n}`).classList.add('active');const btn=document.getElementById(`btn-${n}`);btn.classList.remove('text-slate-500');btn.classList.add('bg-indigo-600','text-white');if(CURRENT_UID){if(n==='showcase')loadShowcase();if(n==='baskets')loadBaskets();if(n==='artifacts')loadArtifacts();if(n==='bridges')loadBridges();if(n==='memory'){loadMemory();loadKarmaGraph()}if(n==='stats')loadStats()}}
+async function apiGet(ep){try{const r=await fetch(`${API}${ep}`);return r.ok?await r.json():null}catch{return null}}
+async function apiPost(ep,d){try{const r=await fetch(`${API}${ep}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.ok?await r.json():null}catch{return null}}
 
-// ============================================================
-//  УТИЛИТЫ
-// ============================================================
-function showToast(message) {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 3000);
-}
+// HEALTH
+async function checkHealth(){try{const h=await apiGet('/api/health');if(h?.beacon==='ok'){document.getElementById('connection-label').textContent=`Маяк v${h.version}`;document.getElementById('connection-sub').textContent=`STANDARD ${h.standard}`;document.getElementById('beacon-version').textContent=`Маяк v${h.version}`;document.getElementById('orb-core').className='w-4 h-4 rounded-full bg-indigo-500';document.getElementById('studio-status').textContent=h.studio_connected?'● Студия':'○ Студия офлайн';document.getElementById('studio-status').className=h.studio_connected?'text-[10px] text-green-600':'text-[10px] text-amber-500'}else throw 0}catch{document.getElementById('connection-label').textContent='Нет связи';document.getElementById('connection-sub').textContent='офлайн';document.getElementById('orb-core').className='w-4 h-4 rounded-full bg-red-400'}}
 
-function toggleParentMenu() {
-    document.getElementById('parent-dropdown').classList.toggle('show');
-}
+// РЕЕСТР
+async function loadRegistry(){const d=await apiGet('/api/registry');if(!d?.profiles)return;const s=document.getElementById('child-selector');s.innerHTML='<option value="">Выберите ребёнка</option>'+d.profiles.map(p=>`<option value="${p.uid}">${p.alias} (${p.age_group||'?'})</option>`).join('');if(d.profiles.length>0&&!CURRENT_UID){CURRENT_UID=d.profiles[0].uid;CURRENT_ALIAS=d.profiles[0].alias;s.value=CURRENT_UID;loadChildInfo()}s.onchange=()=>{const p=d.profiles.find(x=>x.uid===s.value);if(p){CURRENT_UID=p.uid;CURRENT_ALIAS=p.alias;loadChildInfo();refreshAll()}}}
+async function loadChildInfo(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);const pkg=await apiGet(`/api/package/child/${CURRENT_UID}`);const next=pkg?.chapter?.title||(pkg?.meta?.type==='waiting'?'Все пройдены':'—');document.getElementById('child-info').innerHTML=`<div class="flex justify-between items-center"><div><p class="font-bold text-indigo-800 text-lg">${CURRENT_ALIAS}</p><p class="text-sm text-slate-600">✨ ${bio?.artifacts?.length||0} артефактов · 🌟 ${bio?.karma?.current||0} кармы · 📖 ${bio?.completed_stories?.length||0} глав</p><p class="text-sm text-slate-500">Персонаж: <b>${bio?.main_character||'—'}</b> · Мир: <b>${bio?.home_world||'—'}</b></p></div><div class="text-right"><p class="text-[10px] text-slate-400 uppercase font-bold">Следующая глава</p><p class="text-sm font-bold text-indigo-600">${next}</p></div></div>`}
+async function addChild(){const n=document.getElementById('new-child-name').value.trim(),a=document.getElementById('new-child-age').value;if(!n){showToast('Введите имя');return}const r=await apiPost('/api/registry/add_child',{name:n,age_group:a});const d=document.getElementById('add-child-result');if(r?.ok){d.innerHTML=`<div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl text-sm">✅ ${r.name} добавлен! UID: ${r.uid}</div>`;document.getElementById('new-child-name').value='';loadRegistry();setTimeout(()=>d.innerHTML='',4000)}else d.innerHTML='<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ Ошибка</div>'}
 
-document.addEventListener('click', function(e) {
-    const wrap = document.getElementById('parent-profile-wrap');
-    if (wrap && !wrap.contains(e.target)) {
-        document.getElementById('parent-dropdown').classList.remove('show');
-    }
-});
+// ВИТРИНА
+async function loadShowcase(){const d=await apiGet('/api/showcase');const g=document.getElementById('showcase-grid');const s=d?.stories||[];if(!s.length){g.innerHTML='<div class="text-center py-10 text-slate-400 italic col-span-3">Витрина пуста — добавьте книги в system_registry/showcase/</div>';return}g.innerHTML=s.map(x=>`<div class="showcase-card border-2 border-slate-100 rounded-2xl p-5 bg-white"><div class="text-3xl mb-3">📖</div><p class="font-black text-slate-800">${x.title}</p><p class="text-xs text-slate-500 mt-1 mb-4">${x.description||''}</p><button onclick="launchFirstBook('${x.story_id}')" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition">🚀 Запустить</button></div>`).join('')}
+async function launchFirstBook(id){if(!CURRENT_UID){showToast('Выберите ребёнка');return}const d=document.getElementById('showcase-result');d.innerHTML='<div class="p-3 bg-slate-50 rounded-2xl text-sm text-slate-500">⏳ Отправка…</div>';const r=await apiPost('/api/package/order',{meta:{version:"3.0",type:"order",timestamp:new Date().toISOString(),package_id:`pkg_${Date.now()}`},child:{uid:CURRENT_UID,name:CURRENT_ALIAS},order:{mode:"first_book",book_id:id}});if(r?.ok){d.innerHTML=`<div class="p-4 bg-emerald-50 text-emerald-700 rounded-2xl"><p class="font-bold">✅ Книга доставлена!</p><p class="text-sm mt-1">Глава ${r.chapter_id} готова. Искорка может начинать.</p></div>`;loadChildInfo()}else d.innerHTML=`<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ ${r?.detail||'Ошибка'}</div>`}
 
-function logoutParent() {
-    localStorage.removeItem('parent_name');
-    document.getElementById('parent-name').textContent = 'Гость';
-    showToast('Вы вышли');
-}
+// КОРЗИНА ДАРОВ
+async function createBasket(){if(!CURRENT_UID){showToast('Выберите ребёнка');return}const t=document.getElementById('basket-title').value.trim(),desc=document.getElementById('basket-description').value.trim(),goal=document.getElementById('basket-parent-goal').value.trim(),emo=document.getElementById('basket-emotion').value;if(!t){showToast('Опишите ситуацию');return}const d=document.getElementById('basket-result');d.innerHTML='<div class="p-3 bg-indigo-50 text-indigo-700 rounded-2xl text-sm font-bold">⏳ Отправляю в Грондхейм…</div>';
+const bR=await apiPost(`/api/parent/uid/${CURRENT_UID}/basket`,{title:t,description:desc||t,parent_goal:goal||'Помочь ребёнку',child_problem_statement:desc||t,theme:t,emotional_context:{child_emotion:emo}});
+const oR=await apiPost('/api/package/order',{meta:{version:"3.0",type:"order",timestamp:new Date().toISOString(),package_id:`pkg_${Date.now()}`},child:{uid:CURRENT_UID,name:CURRENT_ALIAS},order:{mode:"next_chapter",task_context:t,parent_goal:goal||'',emotional_context:{child_emotion:emo},description:desc||t}});
+if(oR?.ok){d.innerHTML=`<div class="p-4 bg-emerald-50 rounded-2xl text-emerald-700"><p class="font-bold">✅ Запрос принят!</p><p class="text-sm mt-1">«${t}» → Студия получила заказ (${oR.package_id})</p><p class="text-xs mt-2 text-emerald-500">${oR.message||'Глава будет доставлена автоматически'}</p>${bR?.ok?'<p class="text-xs mt-1 text-emerald-400">🌉 Мостик в реальность добавлен</p>':''}</div>`;document.getElementById('basket-title').value='';document.getElementById('basket-description').value='';document.getElementById('basket-parent-goal').value='';loadBaskets();loadBridges()}else if(bR?.ok){d.innerHTML='<div class="p-4 bg-amber-50 rounded-2xl text-amber-700"><p class="font-bold">⚠️ Корзина создана, Студия офлайн</p><p class="text-sm mt-1">Мостик добавлен. Глава появится когда Студия станет доступна.</p></div>';document.getElementById('basket-title').value='';document.getElementById('basket-description').value='';document.getElementById('basket-parent-goal').value='';loadBaskets();loadBridges()}else d.innerHTML='<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm font-bold">❌ Ошибка. Проверьте связь с Маяком.</div>'}
+async function loadBaskets(){if(!CURRENT_UID)return;const b=await apiGet(`/api/parent/uid/${CURRENT_UID}/basket`);const ac=document.getElementById('active-baskets-list'),cc=document.getElementById('completed-baskets-list');const active=b?.active_baskets||[],done=b?.completed_baskets||[];ac.innerHTML=!active.length?'<div class="text-center py-6 text-slate-400 italic">Нет активных запросов</div>':active.map(x=>`<div class="border border-slate-100 rounded-2xl p-4 bg-white shadow-sm"><div class="flex justify-between items-start"><div class="flex-1"><p class="font-bold text-slate-800">${x.title}</p><p class="text-xs text-slate-500 mt-1">${(x.description||'').slice(0,120)}</p>${x.bridge_to_reality?`<p class="text-xs text-amber-600 mt-2">🌉 ${(x.bridge_to_reality.real_world_action||'').slice(0,80)}</p>`:''}</div><span class="px-3 py-1 rounded-full text-[10px] font-black ${x.status==='pending'?'bg-amber-100 text-amber-600':'bg-green-100 text-green-600'}">${x.status}</span></div></div>`).join('');cc.innerHTML=!done.length?'<div class="text-center py-4 text-slate-400 italic text-sm">—</div>':done.slice(-5).map(x=>`<div class="border border-slate-100 rounded-xl p-3 bg-slate-50"><p class="text-sm font-bold text-slate-600">${x.title}</p></div>`).join('')}
 
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-indigo-600', 'text-white');
-        btn.classList.add('text-slate-500');
-    });
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    const activeBtn = document.getElementById(`btn-${tabName}`);
-    activeBtn.classList.remove('text-slate-500');
-    activeBtn.classList.add('bg-indigo-600', 'text-white');
-    
-    if (CURRENT_UID) {
-        if (tabName === 'artifacts') loadArtifacts();
-        if (tabName === 'bridges') loadBridges();
-        if (tabName === 'memory') { loadMemory(); loadKarmaGraph(); }
-        if (tabName === 'stats') loadStats();
-        if (tabName === 'baskets') loadBaskets();
-    }
-}
+// АРТЕФАКТЫ
+async function loadArtifacts(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);const a=bio?.artifacts||[];document.getElementById('artifacts-grid').innerHTML=!a.length?'<div class="text-center py-10 text-slate-400 italic col-span-4">Пока нет артефактов</div>':a.map(x=>`<div class="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100"><div class="text-3xl mb-2">✨</div><p class="font-bold text-amber-800">${x.name}</p><p class="text-[9px] text-amber-400 mt-1">${x.obtained_at?new Date(x.obtained_at).toLocaleDateString():''}</p></div>`).join('')}
 
-// ============================================================
-//  API ВЫЗОВЫ
-// ============================================================
-async function apiGet(endpoint) {
-    try {
-        const res = await fetch(`${API}${endpoint}`);
-        if (!res.ok) return null;
-        return await res.json();
-    } catch (e) {
-        console.warn(`API GET ${endpoint} failed:`, e);
-        return null;
-    }
-}
+// МОСТИКИ
+async function loadBridges(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);const p=bio?.pending_bridges||[],c=bio?.completed_bridges||[];document.getElementById('pending-bridges-list').innerHTML=!p.length?'<div class="text-center py-6 text-slate-400 italic">Нет активных мостиков</div>':p.map(b=>`<div class="border border-amber-200 rounded-2xl p-4 bg-amber-50"><div class="flex justify-between items-start gap-3"><div class="flex-1"><p class="font-bold text-amber-800">🌉 ${b.task}</p><p class="text-[10px] text-amber-500 mt-1">+${b.karma_reward||b.karma_reward_on_success||2} кармы</p></div><button onclick="confirmBridge('${b.id||''}')" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 shrink-0">✅</button></div></div>`).join('');document.getElementById('completed-bridges-list').innerHTML=!c.length?'<div class="text-center py-4 text-slate-400 italic text-sm">—</div>':c.slice(-5).map(b=>`<div class="border border-slate-100 rounded-xl p-3 bg-slate-50"><p class="text-sm font-bold text-green-700">✅ ${b.task}</p></div>`).join('')}
+async function confirmBridge(id){if(!CURRENT_UID||!id)return;const r=await apiPost('/api/package/report',{meta:{version:"3.0",type:"report",timestamp:new Date().toISOString(),package_id:`rpt_${Date.now()}`},child:{uid:CURRENT_UID},report:{chapter_id:"bridge_manual",session_start:new Date().toISOString(),session_end:new Date().toISOString(),choices_made:[],memory_vectors:[],bridges_completed:[id],new_artifacts:[],karma_gained:0}});if(r?.ok){showToast(`✅ Мостик! Карма: ${r.karma_updated}`);loadBridges();loadMemory();loadKarmaGraph()}else showToast('❌ Ошибка')}
 
-async function apiPost(endpoint, data) {
-    try {
-        const res = await fetch(`${API}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!res.ok) return null;
-        return await res.json();
-    } catch (e) {
-        console.warn(`API POST ${endpoint} failed:`, e);
-        return null;
-    }
-}
+// ПАМЯТЬ
+async function loadMemory(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);document.getElementById('karma-value').textContent=bio?.karma?.current||0;document.getElementById('character-info').textContent=bio?.main_character?`Персонаж: ${bio.main_character}`:'';const h=bio?.karma?.history||[];const c=document.getElementById('memory-timeline');if(!h.length){c.innerHTML='<div class="text-center py-10 text-slate-400 italic">Пусто</div>';return}let cum=0;c.innerHTML=h.map((x,i)=>{cum+=x.delta;return`<div class="memory-item p-3 rounded-xl bg-white border border-slate-100 shadow-sm" data-index="${i}"><div class="flex justify-between items-start"><div><p class="text-sm font-bold text-indigo-600">${x.reason||'Событие'}</p><p class="text-xs text-slate-500 mt-1"><span class="${x.delta>=0?'text-green-600':'text-red-600'} font-bold">${x.delta>=0?'+':''}${x.delta}</span> → ${cum}</p><p class="text-[10px] text-slate-400 mt-1">${x.ts?new Date(x.ts).toLocaleString():''}</p></div><span class="text-2xl">${x.delta>=0?'✨':'💔'}</span></div></div>`}).join('');document.querySelectorAll('.memory-item').forEach(el=>el.addEventListener('click',()=>highlightMemoryItem(parseInt(el.dataset.index))))}
+function highlightMemoryItem(i){const items=document.querySelectorAll('#memory-timeline .memory-item');items.forEach(x=>x.classList.remove('highlight'));if(items[i]){items[i].classList.add('highlight');items[i].scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>items[i]?.classList.remove('highlight'),2000)}}
+async function loadKarmaGraph(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);const h=bio?.karma?.history||[];const cv=document.getElementById('karma-canvas');if(!cv)return;if(karmaTrendChart)karmaTrendChart.destroy();if(!h.length){const x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);x.fillStyle='#94a3b8';x.font='14px Nunito';x.fillText('Нет данных',cv.width/2-40,cv.height/2);return}let cum=0;const cd=[],lb=[],ev=[];h.forEach((x,i)=>{cum+=x.delta;cd.push(cum);lb.push(`${i+1}`);ev.push({i,reason:x.reason||'',delta:x.delta,cum,ts:x.ts})});const ctx=cv.getContext('2d');const gr=ctx.createLinearGradient(0,0,0,300);gr.addColorStop(0,'rgba(99,102,241,.4)');gr.addColorStop(1,'rgba(99,102,241,.05)');karmaTrendChart=new Chart(ctx,{type:'line',data:{labels:lb,datasets:[{label:'Карма',data:cd,borderColor:'#6366f1',backgroundColor:gr,borderWidth:3,tension:.3,fill:true,pointRadius:6,pointHoverRadius:10,pointBackgroundColor:c=>cd[c.dataIndex]>=0?'#22c55e':'#ef4444',pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:true,plugins:{tooltip:{callbacks:{label:c=>{const e=ev[c.dataIndex];return[`Карма: ${e.cum}`,`Δ: ${e.delta>=0?'+':''}${e.delta}`,e.reason]}}},legend:{labels:{font:{family:'Nunito'}}}},scales:{y:{beginAtZero:true,grid:{color:'#e2e8f0'}},x:{grid:{display:false}}},onClick:(_,a)=>{if(a.length)highlightMemoryItem(a[0].dataIndex)}}})}
 
-// ============================================================
-//  НОВЫЙ ГРАФИК КАРМЫ (Stepped/Curve + градиент + кликабельные точки)
-// ============================================================
-async function loadKarmaGraph() {
-    if (!CURRENT_UID) return;
-    
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    const history = bio?.karma?.history || [];
-    currentKarmaHistory = history;
-    
-    if (history.length === 0) {
-        const canvas = document.getElementById('karma-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '14px Nunito';
-            ctx.fillText('Нет данных о карме', canvas.width/2 - 80, canvas.height/2);
-        }
-        return;
-    }
-    
-    // Считаем накопительную карму
-    let cumulative = 0;
-    const cumulativeData = [];
-    const labels = [];
-    const events = [];
-    
-    for (let i = 0; i < history.length; i++) {
-        cumulative += history[i].delta;
-        cumulativeData.push(cumulative);
-        // Формируем подпись: номер события + причина
-        const reason = history[i].reason || 'событие';
-        const shortReason = reason.length > 25 ? reason.slice(0, 22) + '...' : reason;
-        labels.push(`${i+1}`);
-        events.push({
-            index: i,
-            reason: reason,
-            delta: history[i].delta,
-            cumulative: cumulative,
-            ts: history[i].ts
-        });
-    }
-    
-    const canvas = document.getElementById('karma-canvas');
-    if (!canvas) return;
-    
-    // Уничтожаем старый график, если есть
-    if (karmaTrendChart) {
-        karmaTrendChart.destroy();
-    }
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Создаём градиент для заливки
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
-    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)');
-    
-    karmaTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Накопленная карма',
-                data: cumulativeData,
-                borderColor: '#6366f1',
-                backgroundColor: gradient,
-                borderWidth: 3,
-                tension: 0.3,        // плавная кривая (Bezier)
-                fill: true,
-                pointRadius: 6,
-                pointHoverRadius: 10,
-                pointBackgroundColor: (context) => {
-                    const value = cumulativeData[context.dataIndex];
-                    if (value >= 0) return '#22c55e';
-                    return '#ef4444';
-                },
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointStyle: 'circle'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            const idx = context.dataIndex;
-                            const event = events[idx];
-                            return [
-                                `Карма: ${event.cumulative}`,
-                                `Изменение: ${event.delta >= 0 ? '+' : ''}${event.delta}`,
-                                `Причина: ${event.reason}`
-                            ];
-                        }
-                    },
-                    backgroundColor: '#1e293b',
-                    titleColor: '#e2e8f0',
-                    bodyColor: '#cbd5e1'
-                },
-                legend: {
-                    position: 'top',
-                    labels: { font: { family: 'Nunito', size: 12 } }
-                }
-            },
-            scales: {
-                y: {
-                    title: { display: true, text: 'Карма', font: { family: 'Nunito', size: 12 } },
-                    grid: { color: '#e2e8f0' },
-                    beginAtZero: true
-                },
-                x: {
-                    title: { display: true, text: 'Шаг', font: { family: 'Nunito', size: 12 } },
-                    grid: { display: false }
-                }
-            },
-            onClick: (event, activeElements) => {
-                if (activeElements.length === 0) return;
-                const idx = activeElements[0].dataIndex;
-                const eventData = events[idx];
-                if (eventData) {
-                    // Подсвечиваем соответствующий элемент в ленте памяти
-                    highlightMemoryItem(idx);
-                    showToast(`📖 ${eventData.reason} (${eventData.delta >= 0 ? '+' : ''}${eventData.delta} кармы)`);
-                }
-            }
-        }
-    });
-}
+// СТАТИСТИКА
+async function loadStats(){if(!CURRENT_UID)return;const bio=await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);document.getElementById('stats-metrics').innerHTML=`<div class="p-4 rounded-2xl bg-slate-50 text-center"><div class="text-2xl">✨</div><div class="text-xl font-black">${bio?.artifacts?.length||0}</div><div class="text-[10px] text-slate-400">Артефакты</div></div><div class="p-4 rounded-2xl bg-slate-50 text-center"><div class="text-2xl">🌟</div><div class="text-xl font-black">${bio?.karma?.current||0}</div><div class="text-[10px] text-slate-400">Карма</div></div><div class="p-4 rounded-2xl bg-slate-50 text-center"><div class="text-2xl">📖</div><div class="text-xl font-black">${bio?.completed_stories?.length||0}</div><div class="text-[10px] text-slate-400">Глав</div></div><div class="p-4 rounded-2xl bg-slate-50 text-center"><div class="text-2xl">🌉</div><div class="text-xl font-black">${bio?.completed_bridges?.length||0}</div><div class="text-[10px] text-slate-400">Мостиков</div></div>`;const ctx=document.getElementById('karma-chart')?.getContext('2d');if(ctx&&bio?.karma?.history?.length){if(karmaChart)karmaChart.destroy();const h=bio.karma.history.slice(-10);karmaChart=new Chart(ctx,{type:'line',data:{labels:h.map((_,i)=>i+1),datasets:[{label:'Карма',data:h.reduce((a,x,i)=>{a.push((i?a[i-1]:0)+x.delta);return a},[]),borderColor:'#6366f1',tension:.3,fill:false}]},options:{responsive:true,maintainAspectRatio:true}})}}
 
-// Подсветка элемента в ленте памяти
-function highlightMemoryItem(eventIndex) {
-    const memoryItems = document.querySelectorAll('#memory-timeline .memory-item');
-    if (memoryItems[eventIndex]) {
-        // Убираем подсветку у всех
-        memoryItems.forEach(item => item.classList.remove('highlight'));
-        // Добавляем нужному
-        memoryItems[eventIndex].classList.add('highlight');
-        // Прокручиваем к нему
-        memoryItems[eventIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Через 2 секунды убираем подсветку
-        setTimeout(() => {
-            memoryItems[eventIndex]?.classList.remove('highlight');
-        }, 2000);
-    }
-}
-
-// ============================================================
-//  РЕГИСТРАЦИЯ И ДЕТИ
-// ============================================================
-async function loadRegistry() {
-    const data = await apiGet('/api/registry');
-    if (data && data.profiles) {
-        REGISTRY = data;
-        const selector = document.getElementById('child-selector');
-        selector.innerHTML = '<option value="">Выберите ребёнка</option>' + 
-            data.profiles.map(p => `<option value="${p.uid}">${p.alias} (${p.age_group || '?'})</option>`).join('');
-        
-        if (data.profiles.length > 0 && !CURRENT_UID) {
-            CURRENT_UID = data.profiles[0].uid;
-            CURRENT_ALIAS = data.profiles[0].alias;
-            selector.value = CURRENT_UID;
-            loadChildInfo();
-        }
-        
-        selector.onchange = () => {
-            const selected = data.profiles.find(p => p.uid === selector.value);
-            if (selected) {
-                CURRENT_UID = selected.uid;
-                CURRENT_ALIAS = selected.alias;
-                loadChildInfo();
-                refreshAll();
-            }
-        };
-    }
-}
-
-async function loadChildInfo() {
-    if (!CURRENT_UID) return;
-    const profile = await apiGet(`/api/parent/uid/${CURRENT_UID}/child_profile`);
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    
-    document.getElementById('child-info').innerHTML = `
-        <p class="font-bold text-indigo-800">${CURRENT_ALIAS}</p>
-        <p class="text-sm">🎨 Паттернов: ${profile?.psychological_patterns?.length || 0}</p>
-        <p class="text-sm">✨ Артефактов: ${bio?.artifacts?.length || 0}</p>
-        <p class="text-sm">🌟 Карма: ${bio?.karma?.current || 0}</p>
-    `;
-}
-
-async function addChild() {
-    const name = document.getElementById('new-child-name').value.trim();
-    const ageGroup = document.getElementById('new-child-age').value;
-    
-    if (!name) {
-        showToast('Введите имя ребёнка');
-        return;
-    }
-    
-    const result = await apiPost('/api/registry/add_child', { name, age_group: ageGroup });
-    const resultDiv = document.getElementById('add-child-result');
-    
-    if (result && result.ok) {
-        resultDiv.innerHTML = `<div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl text-sm">✅ ${result.name} добавлен! UID: ${result.uid}</div>`;
-        document.getElementById('new-child-name').value = '';
-        loadRegistry();
-        setTimeout(() => resultDiv.innerHTML = '', 3000);
-    } else {
-        resultDiv.innerHTML = `<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ Ошибка: ${result?.message || 'неизвестная'}</div>`;
-    }
-}
-
-// ============================================================
-//  КОРЗИНЫ
-// ============================================================
-async function createBasket() {
-    if (!CURRENT_UID) {
-        showToast('Сначала выберите ребёнка');
-        return;
-    }
-    
-    const title = document.getElementById('basket-title').value.trim();
-    const description = document.getElementById('basket-description').value.trim();
-    const parentGoal = document.getElementById('basket-parent-goal').value.trim();
-    const emotion = document.getElementById('basket-emotion').value;
-    
-    if (!title || !description) {
-        showToast('Заполните название и описание');
-        return;
-    }
-    
-    const result = await apiPost(`/api/parent/uid/${CURRENT_UID}/basket`, {
-        title, description, parent_goal: parentGoal || "Помочь ребёнку",
-        child_problem_statement: description, theme: "дружба",
-        emotional_context: { child_emotion: emotion }
-    });
-    
-    const resultDiv = document.getElementById('basket-result');
-    if (result && result.ok) {
-        resultDiv.innerHTML = `<div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl text-sm">✅ Корзина "${title}" создана! Мостик добавлен.</div>`;
-        document.getElementById('basket-title').value = '';
-        document.getElementById('basket-description').value = '';
-        document.getElementById('basket-parent-goal').value = '';
-        loadBaskets();
-        loadBridges();
-        setTimeout(() => resultDiv.innerHTML = '', 3000);
-    } else {
-        resultDiv.innerHTML = `<div class="p-3 bg-red-50 text-red-700 rounded-2xl text-sm">❌ Ошибка создания</div>`;
-    }
-}
-
-async function loadBaskets() {
-    if (!CURRENT_UID) return;
-    const basket = await apiGet(`/api/parent/uid/${CURRENT_UID}/basket`);
-    
-    const activeContainer = document.getElementById('active-baskets-list');
-    const completedContainer = document.getElementById('completed-baskets-list');
-    
-    if (!basket || !basket.active_baskets || basket.active_baskets.length === 0) {
-        activeContainer.innerHTML = '<div class="text-center py-6 text-slate-400 italic">Нет активных корзин</div>';
-    } else {
-        activeContainer.innerHTML = basket.active_baskets.map(b => `
-            <div class="border border-slate-100 rounded-xl p-4 bg-white shadow-sm">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="font-bold text-indigo-600 text-sm">${b.id}</p>
-                        <p class="font-bold">${b.title}</p>
-                        <p class="text-xs text-slate-500 mt-1">${b.description?.slice(0, 100)}</p>
-                    </div>
-                    <span class="px-3 py-1 rounded-full text-[10px] font-black ${b.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}">${b.status}</span>
-                </div>
-                ${b.bridge_to_reality ? `<div class="mt-2 text-xs text-amber-600">🌉 Мостик: ${b.bridge_to_reality.real_world_action?.slice(0, 80)}</div>` : ''}
-            </div>
-        `).join('');
-    }
-    
-    if (!basket || !basket.completed_baskets || basket.completed_baskets.length === 0) {
-        completedContainer.innerHTML = '<div class="text-center py-4 text-slate-400 italic text-sm">Нет завершённых</div>';
-    } else {
-        completedContainer.innerHTML = basket.completed_baskets.map(b => `
-            <div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
-                <p class="text-sm font-bold">${b.title}</p>
-                <p class="text-[10px] text-slate-400">Завершена: ${b.completed_at ? new Date(b.completed_at).toLocaleDateString() : ''}</p>
-            </div>
-        `).join('');
-    }
-}
-
-// ============================================================
-//  АРТЕФАКТЫ
-// ============================================================
-async function loadArtifacts() {
-    if (!CURRENT_UID) return;
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    const artifacts = bio?.artifacts || [];
-    
-    const container = document.getElementById('artifacts-grid');
-    if (artifacts.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-slate-400 italic col-span-4">Нет артефактов. Начните приключение в Искорке!</div>';
-    } else {
-        container.innerHTML = artifacts.map(a => `
-            <div class="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100">
-                <div class="text-3xl mb-2">✨</div>
-                <p class="font-bold text-amber-800">${a.name}</p>
-                <p class="text-[10px] text-amber-600 mt-1">${a.description || ''}</p>
-                <p class="text-[9px] text-amber-400 mt-2">${a.obtained_at ? new Date(a.obtained_at).toLocaleDateString() : ''}</p>
-            </div>
-        `).join('');
-    }
-}
-
-// ============================================================
-//  МОСТИКИ
-// ============================================================
-async function loadBridges() {
-    if (!CURRENT_UID) return;
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    const pending = bio?.pending_bridges || [];
-    const completed = bio?.completed_bridges || [];
-    
-    const pendingContainer = document.getElementById('pending-bridges-list');
-    const completedContainer = document.getElementById('completed-bridges-list');
-    
-    if (pending.length === 0) {
-        pendingContainer.innerHTML = '<div class="text-center py-6 text-slate-400 italic">Нет активных мостиков</div>';
-    } else {
-        pendingContainer.innerHTML = pending.map((b, idx) => `
-            <div class="border border-amber-200 rounded-xl p-4 bg-amber-50">
-                <div class="flex justify-between items-start">
-                    <div class="flex-1">
-                        <p class="font-bold text-amber-800">🌉 Мостик в реальность</p>
-                        <p class="text-sm text-amber-700 mt-1">${b.task}</p>
-                        <p class="text-[10px] text-amber-500 mt-2">Награда: +${b.karma_reward_on_success || 2} кармы</p>
-                    </div>
-                    <button onclick="confirmBridge('${b.task.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition">✅ Выполнено</button>
-                </div>
-            </div>
-        `).join('');
-    }
-    
-    if (completed.length === 0) {
-        completedContainer.innerHTML = '<div class="text-center py-4 text-slate-400 italic text-sm">Нет выполненных мостиков</div>';
-    } else {
-        completedContainer.innerHTML = completed.map(b => `
-            <div class="border border-slate-100 rounded-xl p-3 bg-slate-50">
-                <p class="text-sm font-bold text-green-700">✅ Выполнено</p>
-                <p class="text-xs text-slate-600">${b.task}</p>
-                <p class="text-[10px] text-slate-400 mt-1">+${b.karma_reward_on_success || 2} кармы</p>
-            </div>
-        `).join('');
-    }
-}
-
-async function confirmBridge(task) {
-    if (!CURRENT_UID) return;
-    const result = await apiPost(`/api/parent/uid/${CURRENT_UID}/bridge/complete`, { task });
-    if (result && result.ok) {
-        showToast(`✅ Мостик выполнен! +${result.karma_reward} кармы`);
-        loadBridges();
-        loadMemory();
-        loadKarmaGraph();  // обновляем график
-        loadStats();
-    } else {
-        showToast('❌ Ошибка подтверждения');
-    }
-}
-
-// ============================================================
-//  ПАМЯТЬ (ОБНОВЛЕНА — добавляем data-index и класс memory-item)
-// ============================================================
-async function loadMemory() {
-    if (!CURRENT_UID) return;
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    
-    document.getElementById('karma-value').textContent = bio?.karma?.current || 0;
-    
-    const history = bio?.karma?.history || [];
-    const container = document.getElementById('memory-timeline');
-    
-    if (history.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-slate-400 italic">История кармы пуста</div>';
-    } else {
-        // Считаем накопительную карму для отображения
-        let cumulative = 0;
-        const items = [];
-        for (let i = 0; i < history.length; i++) {
-            cumulative += history[i].delta;
-            items.push(`
-                <div class="memory-item p-3 rounded-xl bg-white border border-slate-100 shadow-sm" data-index="${i}">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-sm font-bold text-indigo-600">${history[i].reason || 'Событие'}</p>
-                            <p class="text-xs text-slate-500 mt-1">
-                                Изменение: <span class="${history[i].delta >= 0 ? 'text-green-600' : 'text-red-600'} font-bold">${history[i].delta >= 0 ? '+' : ''}${history[i].delta}</span>
-                                → Накоплено: <span class="font-bold">${cumulative}</span>
-                            </p>
-                            <p class="text-[10px] text-slate-400 mt-1">${history[i].ts ? new Date(history[i].ts).toLocaleString() : ''}</p>
-                        </div>
-                        <div class="text-2xl ${history[i].delta >= 0 ? 'text-green-500' : 'text-red-500'}">
-                            ${history[i].delta >= 0 ? '✨' : '💔'}
-                        </div>
-                    </div>
-                </div>
-            `);
-        }
-        container.innerHTML = items.join('');
-        
-        // Добавляем обработчики кликов на элементы памяти
-        document.querySelectorAll('.memory-item').forEach(el => {
-            el.addEventListener('click', () => {
-                const idx = parseInt(el.dataset.index);
-                if (!isNaN(idx) && karmaTrendChart) {
-                    // Подсвечиваем соответствующую точку на графике
-                    if (karmaTrendChart && karmaTrendChart.data.datasets[0].data[idx] !== undefined) {
-                        // Эмулируем клик по точке графика
-                        const meta = karmaTrendChart.getDatasetMeta(0);
-                        if (meta.data[idx]) {
-                            // Просто подсвечиваем элемент и показываем тултип
-                            highlightMemoryItem(idx);
-                            const eventData = currentKarmaHistory[idx];
-                            if (eventData) {
-                                showToast(`📖 ${eventData.reason} (${eventData.delta >= 0 ? '+' : ''}${eventData.delta} кармы)`);
-                            }
-                        }
-                    }
-                }
-            });
-        });
-    }
-}
-
-// ============================================================
-//  СТАТИСТИКА
-// ============================================================
-async function loadStats() {
-    if (!CURRENT_UID) return;
-    const profile = await apiGet(`/api/parent/uid/${CURRENT_UID}/child_profile`);
-    const bio = await apiGet(`/api/beacon/uid/${CURRENT_UID}/bio`);
-    
-    const metrics = document.getElementById('stats-metrics');
-    metrics.innerHTML = `
-        <div class="p-4 rounded-2xl bg-slate-50 text-center">
-            <div class="text-2xl">🎨</div>
-            <div class="text-xl font-black">${profile?.psychological_patterns?.length || 0}</div>
-            <div class="text-[10px] text-slate-400">Паттерны</div>
-        </div>
-        <div class="p-4 rounded-2xl bg-slate-50 text-center">
-            <div class="text-2xl">✨</div>
-            <div class="text-xl font-black">${bio?.artifacts?.length || 0}</div>
-            <div class="text-[10px] text-slate-400">Артефакты</div>
-        </div>
-        <div class="p-4 rounded-2xl bg-slate-50 text-center">
-            <div class="text-2xl">🌟</div>
-            <div class="text-xl font-black">${bio?.karma?.current || 0}</div>
-            <div class="text-[10px] text-slate-400">Карма</div>
-        </div>
-        <div class="p-4 rounded-2xl bg-slate-50 text-center">
-            <div class="text-2xl">📜</div>
-            <div class="text-xl font-black">${bio?.karma?.history?.length || 0}</div>
-            <div class="text-[10px] text-slate-400">Событий</div>
-        </div>
-    `;
-    
-    // График кармы (для вкладки Статистика, старый)
-    const ctx = document.getElementById('karma-chart')?.getContext('2d');
-    if (ctx && bio?.karma?.history) {
-        if (karmaChart) karmaChart.destroy();
-        const history = bio.karma.history.slice(-10);
-        karmaChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: history.map((_, i) => i + 1),
-                datasets: [{
-                    label: 'Карма',
-                    data: history.reduce((acc, h, i) => {
-                        const prev = i === 0 ? 0 : acc[i-1];
-                        acc.push(prev + h.delta);
-                        return acc;
-                    }, []),
-                    borderColor: '#6366f1',
-                    tension: 0.3,
-                    fill: false
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: true }
-        });
-    }
-}
-
-// ============================================================
-//  ЗДОРОВЬЕ
-// ============================================================
-async function checkHealth() {
-    try {
-        const health = await apiGet('/health');
-        if (health) {
-            document.getElementById('connection-label').textContent = `Маяк v${health.version}`;
-            document.getElementById('connection-sub').textContent = `${health.agents_available || 0} агентов`;
-            document.getElementById('orb-core').classList.remove('bg-red-400');
-            document.getElementById('orb-core').classList.add('bg-indigo-500');
-        } else {
-            throw new Error('No response');
-        }
-    } catch (e) {
-        document.getElementById('connection-label').textContent = 'Нет связи';
-        document.getElementById('connection-sub').textContent = 'офлайн';
-        document.getElementById('orb-core').classList.remove('bg-indigo-500');
-        document.getElementById('orb-core').classList.add('bg-red-400');
-    }
-}
-
-function refreshAll() {
-    if (!CURRENT_UID) return;
-    loadChildInfo();
-    loadBaskets();
-    loadArtifacts();
-    loadBridges();
-    loadMemory();
-    loadKarmaGraph();  // обновляем график
-    loadStats();
-    showToast('Обновлено');
-}
-
-// ============================================================
-//  ЗАПУСК
-// ============================================================
-setInterval(checkHealth, 15000);
-loadRegistry();
-checkHealth();
+function refreshAll(){if(!CURRENT_UID)return;loadChildInfo();loadArtifacts();loadBridges();loadMemory();loadKarmaGraph();loadStats();showToast('⟳ Обновлено')}
+setInterval(checkHealth,15000);loadRegistry();checkHealth();
 </script>
 </body>
 </html>
