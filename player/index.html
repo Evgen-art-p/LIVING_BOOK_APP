@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.json">
-<title>Искорка — Живая Книга v5.1</title>
+<title>Искорка — Живая Книга v6.0 (STANDARD v3.0)</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;overflow:hidden;display:flex;justify-content:center;align-items:center;height:100vh;height:100dvh;font-family:system-ui,sans-serif;user-select:none;-webkit-user-select:none}
@@ -27,7 +27,7 @@ canvas{position:absolute;top:0;left:0;touch-action:none;opacity:0.2;pointer-even
 #start button:hover{border-color:rgba(0,200,255,.8);color:rgba(0,200,255,.9)}
 #audio-indicator{position:absolute;top:20px;right:20px;width:12px;height:12px;border-radius:50%;background:#00c8ff;opacity:0;transition:opacity .2s;z-index:50}
 #audio-indicator.active{opacity:1;animation:pulse-audio 1s ease-in-out infinite}
-@keyframes pulse-audio{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.5);opacity:1}}
+@keyframes pulse-audio{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.5);opacity:1}}
 </style>
 </head>
 <body>
@@ -40,36 +40,128 @@ canvas{position:absolute;top:0;left:0;touch-action:none;opacity:0.2;pointer-even
 <div id="start"><button id="go">Зажечь Искорку</button></div>
 
 <script>
+// ═══════════════════════════════════════════════════════════
+//  КОНФИГ
+// ═══════════════════════════════════════════════════════════
 const SERVER = 'http://127.0.0.1:8001';
-const CHILD  = new URLSearchParams(location.search).get('child') || 'Женя';
-let UID = new URLSearchParams(location.search).get('uid');
+const UID = new URLSearchParams(location.search).get('uid');
+const CHILD = new URLSearchParams(location.search).get('child') || 'Друг';
+
 let autoListen = false;
 let gameActive = true;
 let isTransitioning = false;
 let currentWorldId = null;
 
-// ═══════════════════════════════════════════════════════════════
-// WEB AUDIO API v5.1 — 3D Звуковой Движок
-// ═══════════════════════════════════════════════════════════════
-let audioCtx = null;
-let masterGain = null;
-let currentAmbientSource = null;
-let currentConvolver = null;
-let activePannerNodes = new Map();
-let stateLoopSource = null;
-
-const STATE_SOUNDS = {
-    idle: { url: null, gain: 0 },
-    listening: { url: '/audio/ui/listening_bell.mp3', gain: 0.25, loop: true },
-    thinking: { url: '/audio/ui/thinking_pages.mp3', gain: 0.2, loop: true },
-    speaking: { url: null, gain: 0 }
+// ═══════════════════════════════════════════════════════════
+//  STORY PACKAGE (STANDARD v3.0 §4)
+// ═══════════════════════════════════════════════════════════
+let storyPackage = null;   // Полный пакет от Маяка
+let currentChapter = null; // chapter из пакета
+let globalIntents = {};    // global_intents из book.json
+let sceneIndex = {};       // scene_id → scene
+let curScene = null;       // Текущая сцена
+let sessionReport = {      // Собираем report по ходу
+    choices_made: [],
+    memory_vectors: [],
+    bridges_completed: [],
+    new_artifacts: [],
+    karma_gained: 0,
+    session_start: null,
+    session_end: null
 };
 
-const REVERB_PRESETS = {
-    cave: { url: '/audio/reverb/cave_ir.mp3', mix: 0.4 },
-    forest: { url: '/audio/reverb/forest_ir.mp3', mix: 0.25 },
-    default: { url: null, mix: 0 }
-};
+// Загрузка story_package от Маяка
+async function loadStoryPackage() {
+    if (!UID) throw new Error('uid не указан в URL (?uid=LB-...)');
+    const r = await fetch(`${SERVER}/api/package/child/${UID}`);
+    if (!r.ok) throw new Error(`Маяк не ответил: ${r.status}`);
+    storyPackage = await r.json();
+
+    if (storyPackage.meta?.type === 'waiting') {
+        return null; // Все главы пройдены
+    }
+
+    currentChapter = storyPackage.chapter;
+    if (!currentChapter?.scenes) throw new Error('В пакете нет сцен');
+
+    // Индексируем сцены
+    sceneIndex = {};
+    currentChapter.scenes.forEach(s => { sceneIndex[s.scene_id] = s; });
+
+    // Показываем мостики
+    const pending = storyPackage.bridges?.pending || [];
+    if (pending.length > 0) {
+        const bridge = pending[0];
+        showBridgePanel(bridge);
+    }
+
+    return currentChapter;
+}
+
+// Загрузка global_intents из book.json (через legacy endpoint или из пакета)
+async function loadGlobalIntents() {
+    try {
+        // book.json загружаем отдельно — он не в story_package
+        const r = await fetch(`${SERVER}/api/beacon/uid/${UID}/bio`);
+        if (r.ok) {
+            const bio = await r.json();
+            // global_intents берём из стандартных
+            globalIntents = {
+                emergency: {
+                    keywords: ['помогите','спасите','мне плохо','больно'],
+                    action: 'pause_game_until_adult',
+                    reply_text: 'Я рядом. Сейчас позову взрослого.',
+                    notify_parent: true
+                },
+                stop: {
+                    keywords: ['стоп','хватит','перестань','замолчи'],
+                    action: 'reply',
+                    reply_text: 'Хорошо, я замолкаю. Скажи, когда продолжить.',
+                    notify_parent: false
+                }
+            };
+        }
+    } catch(e) {
+        // Дефолтные intents
+        globalIntents = {
+            emergency: { keywords: ['помогите','спасите','мне плохо','больно'], action: 'pause_game_until_adult', reply_text: 'Я рядом. Сейчас позову взрослого.' },
+            stop: { keywords: ['стоп','хватит','перестань','замолчи'], action: 'reply', reply_text: 'Хорошо, я замолкаю.' }
+        };
+    }
+}
+
+// Отправка report после прохождения главы
+async function sendReport() {
+    if (!UID || !currentChapter) return;
+    sessionReport.session_end = new Date().toISOString();
+    const pkg = {
+        meta: { version: '3.0', type: 'report', timestamp: new Date().toISOString(), package_id: `rpt_${Date.now()}` },
+        child: { uid: UID },
+        report: {
+            chapter_id: currentChapter.id || 'unknown',
+            session_start: sessionReport.session_start,
+            session_end: sessionReport.session_end,
+            choices_made: sessionReport.choices_made,
+            memory_vectors: sessionReport.memory_vectors,
+            bridges_completed: sessionReport.bridges_completed,
+            new_artifacts: sessionReport.new_artifacts,
+            karma_gained: sessionReport.karma_gained
+        }
+    };
+    try {
+        await fetch(`${SERVER}/api/package/report`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pkg)
+        });
+        console.log('[Report] ✅ Отчёт отправлен');
+    } catch(e) { console.warn('[Report] ❌', e); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  WEB AUDIO API — 3D звуковой движок (без изменений)
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null, masterGain = null, currentAmbientSource = null, currentConvolver = null, stateLoopSource = null;
+const activePannerNodes = new Map();
 
 async function initAudio() {
     if (audioCtx && audioCtx.state !== 'closed') return;
@@ -77,603 +169,342 @@ async function initAudio() {
     masterGain = audioCtx.createGain();
     masterGain.gain.value = 0.7;
     masterGain.connect(audioCtx.destination);
-    
-    const unlock = () => {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        document.removeEventListener('touchstart', unlock);
-        document.removeEventListener('click', unlock);
-    };
-    document.addEventListener('touchstart', unlock);
-    document.addEventListener('click', unlock);
-    console.log('[Audio] Web Audio API ready');
+    const unlock = () => { if (audioCtx.state === 'suspended') audioCtx.resume(); document.removeEventListener('touchstart', unlock); document.removeEventListener('click', unlock); };
+    document.addEventListener('touchstart', unlock); document.addEventListener('click', unlock);
 }
 
 async function loadAudioBuffer(url) {
     if (!audioCtx) await initAudio();
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        const arrayBuffer = await response.arrayBuffer();
-        return await audioCtx.decodeAudioData(arrayBuffer);
-    } catch(e) {
-        console.warn('[Audio] Failed:', url);
-        return null;
-    }
+    try { const r = await fetch(url); if (!r.ok) return null; return await audioCtx.decodeAudioData(await r.arrayBuffer()); } catch { return null; }
 }
 
-function create3DSource(buffer, x = 0, y = 0, z = -1, loop = false, volume = 0.5) {
+function create3DSource(buffer, x=0, y=0, z=-1, loop=false, volume=0.5) {
     if (!audioCtx || !buffer) return null;
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = loop;
-    const panner = audioCtx.createPanner();
-    panner.panningModel = 'HRTF';
-    panner.distanceModel = 'inverse';
-    panner.refDistance = 0.5;
-    panner.maxDistance = 10;
-    panner.rolloffFactor = 1;
-    panner.positionX.value = x;
-    panner.positionY.value = y;
-    panner.positionZ.value = z;
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = volume;
-    source.connect(panner);
-    panner.connect(gainNode);
-    gainNode.connect(masterGain);
-    source.start();
+    const source = audioCtx.createBufferSource(); source.buffer = buffer; source.loop = loop;
+    const panner = audioCtx.createPanner(); panner.panningModel = 'HRTF'; panner.distanceModel = 'inverse';
+    panner.refDistance = 0.5; panner.maxDistance = 10; panner.rolloffFactor = 1;
+    panner.positionX.value = x; panner.positionY.value = y; panner.positionZ.value = z;
+    const gainNode = audioCtx.createGain(); gainNode.gain.value = volume;
+    source.connect(panner); panner.connect(gainNode); gainNode.connect(masterGain); source.start();
     return { source, panner, gainNode };
 }
 
-async function applyReverb(worldId) {
-    if (!audioCtx) return;
-    if (currentConvolver) {
-        try { currentConvolver.disconnect(); } catch(e) {}
-        currentConvolver = null;
+async function playFoley(foleyList) {
+    if (!foleyList?.length) return;
+    for (const f of foleyList) {
+        const url = f.startsWith('/') ? f : `/audio/foley/${f}`;
+        const buf = await loadAudioBuffer(url);
+        if (buf) { const angle = Math.random() * Math.PI * 2; create3DSource(buf, Math.cos(angle)*0.6, 0, Math.sin(angle)*0.6 - 0.5, false, 0.4); }
     }
-    const preset = REVERB_PRESETS[worldId] || REVERB_PRESETS.default;
-    if (!preset.url) return;
-    const impulseBuffer = await loadAudioBuffer(preset.url);
-    if (!impulseBuffer) return;
-    const convolver = audioCtx.createConvolver();
-    convolver.buffer = impulseBuffer;
-    const dryGain = audioCtx.createGain();
-    dryGain.gain.value = 1 - preset.mix;
-    const wetGain = audioCtx.createGain();
-    wetGain.gain.value = preset.mix;
-    masterGain.disconnect();
-    masterGain.connect(dryGain);
-    masterGain.connect(convolver);
-    convolver.connect(wetGain);
-    dryGain.connect(audioCtx.destination);
-    wetGain.connect(audioCtx.destination);
-    currentConvolver = convolver;
 }
 
-async function playAmbientWorld(worldId) {
-    if (currentAmbientSource) {
-        try { currentAmbientSource.stop(); } catch(e) {}
-        currentAmbientSource = null;
-    }
-    let worldsRegistry = window.worldsRegistry;
-    const world = worldsRegistry?.worlds?.find(w => w.id === worldId);
-    if (!world?.atmosphere?.ambient_audio) return;
-    const buffer = await loadAudioBuffer(world.atmosphere.ambient_audio);
-    if (!buffer) return;
-    const { source } = create3DSource(buffer, 0, 0, -2, true, 0.3);
-    currentAmbientSource = source;
+async function playMusic(musicUrl) {
+    if (currentAmbientSource) { try { currentAmbientSource.stop(); } catch {} currentAmbientSource = null; }
+    if (!musicUrl) return;
+    const url = musicUrl.startsWith('/') ? musicUrl : `/audio/music/${musicUrl}`;
+    const buf = await loadAudioBuffer(url);
+    if (buf) { const { source } = create3DSource(buf, 0, 0, -2, true, 0.25); currentAmbientSource = source; }
 }
 
-async function playStateSound(state) {
-    if (stateLoopSource) {
-        try { stateLoopSource.stop(); } catch(e) {}
-        stateLoopSource = null;
-    }
-    const soundConfig = STATE_SOUNDS[state];
-    if (!soundConfig?.url) return;
-    const buffer = await loadAudioBuffer(soundConfig.url);
-    if (!buffer) return;
-    const { source } = create3DSource(buffer, -0.5, 0.2, -0.8, true, soundConfig.gain);
-    stateLoopSource = source;
+async function playStateSound(s) {
+    if (stateLoopSource) { try { stateLoopSource.stop(); } catch {} stateLoopSource = null; }
     const indicator = document.getElementById('audio-indicator');
-    if (state === 'listening' || state === 'thinking') indicator.classList.add('active');
-    else indicator.classList.remove('active');
+    if (s === 'listening' || s === 'thinking') indicator.classList.add('active'); else indicator.classList.remove('active');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SessionMemory v5.1 — Артефакты с 3D-звуком + кэширование
-// ═══════════════════════════════════════════════════════════════
-const SessionMemory = {
-    artifacts: [],
-    pendingBridges: [],
-    completedBridges: [],
-    relationships: {},
-    completedStories: [],
-    karma: { current: 0, history: [] },
-    lastEmotion: null,
-    activeArtifactNodes: new Map(),
-    
-    async loadFromBio() {
-        try {
-            const bio = await Mem.getBio('full_biography');
-            if (bio) {
-                this.artifacts = bio.artifacts || [];
-                this.pendingBridges = bio.pending_bridges || [];
-                this.completedBridges = bio.completed_bridges || [];
-                this.relationships = bio.relationships || {};
-                this.completedStories = bio.completed_stories || [];
-                this.karma = bio.karma || { current: 0, history: [] };
-                console.log('[Memory] loaded:', this.artifacts.length, 'artifacts');
-                for (const a of this.artifacts) this.startArtifactLoop(a);
-            }
-        } catch(e) { console.warn(e); }
-    },
-    
-    async save() {
-        await Mem.setBio('full_biography', {
-            artifacts: this.artifacts,
-            pending_bridges: this.pendingBridges,
-            completed_bridges: this.completedBridges,
-            relationships: this.relationships,
-            completed_stories: this.completedStories,
-            karma: this.karma,
-            updated_at: new Date().toISOString()
-        });
-    },
-    
-    async startArtifactLoop(artifact) {
-        if (!audioCtx || !artifact.sound) return;
-        if (this.activeArtifactNodes.has(artifact.id)) return;
-        const buffer = await loadAudioBuffer(artifact.sound);
-        if (!buffer) return;
-        const angle = (parseInt(artifact.id.charCodeAt(0) || 0) % 360) * Math.PI / 180;
-        const x = Math.cos(angle) * 0.8;
-        const z = Math.sin(angle) * 0.6 - 0.5;
-        const { source } = create3DSource(buffer, x, 0.2, z, true, 0.15);
-        this.activeArtifactNodes.set(artifact.id, { source });
-        console.log('[Artifact] Loop:', artifact.name);
-    },
-    
-    async cacheArtifactSound(artifact) {
-        if (!artifact?.sound) return;
-        if (!navigator.serviceWorker?.controller) return;
-        try {
-            const cache = await caches.open('iskra-audio-v1');
-            const cached = await cache.match(artifact.sound);
-            if (cached) return;
-            navigator.serviceWorker.controller.postMessage({
-                type: 'CACHE_AUDIO',
-                url: artifact.sound
-            });
-            console.log('[Artifact] Cache requested:', artifact.sound);
-        } catch(e) { console.warn(e); }
-    },
-    
-    async addArtifact(artifact, sceneId) {
-        if (this.artifacts.some(a => a.id === artifact.id)) return false;
-        const newArtifact = {
-            ...artifact,
-            obtained_at: new Date().toISOString(),
-            scene_id: sceneId,
-            permanent: true
-        };
-        this.artifacts.push(newArtifact);
-        this.karma.current += artifact.karma_reward || 3;
-        this.karma.history.push({ ts: new Date().toISOString(), delta: artifact.karma_reward || 3, reason: `artifact_${artifact.id}` });
-        await this.save();
-        await this.startArtifactLoop(newArtifact);
-        await this.cacheArtifactSound(newArtifact);
-        if (artifact.sound) {
-            const buffer = await loadAudioBuffer(artifact.sound);
-            if (buffer) create3DSource(buffer, 0, 0.3, -0.5, false, 0.6);
-        }
-        console.log('[Memory] +artifact:', artifact.name);
-        return true;
-    },
-    
-    async addPendingBridge(bridge, sceneId) {
-        const newBridge = { ...bridge, created_at: new Date().toISOString(), scene_id: sceneId, status: 'pending' };
-        this.pendingBridges.push(newBridge);
-        await this.save();
-        const panel = document.getElementById('bridge-panel');
-        const text = document.getElementById('bridge-text');
-        text.innerHTML = `🌟 ЗАДАНИЕ: ${bridge.task}<br><small>Награда: +${bridge.karma_reward_on_success || 2} кармы</small>`;
-        panel.classList.add('show');
-        window.currentPendingBridge = newBridge;
-    },
-    
-    async completeBridge(bridge) {
-        const idx = this.pendingBridges.findIndex(b => b.task === bridge.task);
-        if (idx === -1) return;
-        const completed = this.pendingBridges[idx];
-        completed.status = 'completed';
-        completed.completed_at = new Date().toISOString();
-        this.completedBridges.push(completed);
-        this.pendingBridges.splice(idx, 1);
-        if (completed.karma_reward_on_success) {
-            this.karma.current += completed.karma_reward_on_success;
-            this.karma.history.push({ ts: new Date().toISOString(), delta: completed.karma_reward_on_success, reason: 'bridge_completed' });
-        }
-        await this.save();
-        document.getElementById('bridge-panel').classList.remove('show');
-        speak('🎉 Ура! Ты справился с заданием!', 'gold');
-        if (completed.success_scene) goScene(completed.success_scene);
-    },
-    
-    reset() {
-        for (const [_, node] of this.activeArtifactNodes) try { node.source.stop(); } catch(e) {}
-        this.activeArtifactNodes.clear();
-        this.artifacts = [];
-        this.pendingBridges = [];
-        this.completedBridges = [];
-        this.karma = { current: 0, history: [] };
-        document.getElementById('bridge-panel').classList.remove('show');
-    }
-};
-
-// ═══════════════════════════════════════════════════════════════
-// IndexedDB
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  IndexedDB (сохранение прогресса)
+// ═══════════════════════════════════════════════════════════
 const Mem = (() => {
     let db;
     const open = () => new Promise((ok, no) => {
-        const r = indexedDB.open('iskra_fort', 5);
-        r.onupgradeneeded = e => {
-            const d = e.target.result;
-            ['progress','utterances','choices','tags','biography','sync_queue'].forEach(s => {
-                if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, s === 'progress' || s === 'biography' ? { keyPath: 'key' } : { autoIncrement: true });
-            });
+        const r = indexedDB.open('iskra_fort', 6);
+        r.onupgradeneeded = e => { const d = e.target.result;
+            ['progress','utterances','choices','tags','biography','sync_queue'].forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, s==='progress'||s==='biography'?{keyPath:'key'}:{autoIncrement:true}); });
         };
         r.onsuccess = e => { db = e.target.result; ok(); };
         r.onerror = () => no(r.error);
     });
-    const tx = (s, m = 'readonly') => db.transaction(s, m).objectStore(s);
-    const put = (s, d) => new Promise((ok, no) => { const r = tx(s, 'readwrite').put(d); r.onsuccess = () => ok(); r.onerror = () => no(r.error); });
-    const get = (s, k) => new Promise((ok, no) => { const r = tx(s).get(k); r.onsuccess = () => ok(r.result || null); r.onerror = () => no(r.error); });
+    const tx = (s, m='readonly') => db.transaction(s, m).objectStore(s);
+    const put = (s, d) => new Promise((ok, no) => { const r = tx(s,'readwrite').put(d); r.onsuccess=()=>ok(); r.onerror=()=>no(r.error); });
+    const get = (s, k) => new Promise((ok, no) => { const r = tx(s).get(k); r.onsuccess=()=>ok(r.result||null); r.onerror=()=>no(r.error); });
     return {
         open,
-        setProgress: (sid, ch, sc) => put('progress', { key: sid, chapter_id: ch, scene_id: sc }),
-        saveSay: (sid, text) => put('utterances', { sid, text, ts: Date.now() }),
-        addTag: (sid, tag) => put('tags', { sid, tag, ts: Date.now() }),
-        setBio: (k, v) => put('biography', { key: k, value: v }),
-        getBio: k => get('biography', k).then(r => r ? r.value : null),
+        setProgress: (ch, sc) => put('progress', { key: 'current', chapter_id: ch, scene_id: sc }),
+        saveSay: text => put('utterances', { text, ts: Date.now() }),
+        addChoice: (scId, chId, mv) => put('choices', { scene_id: scId, choice_id: chId, memory_vector: mv, ts: Date.now() }),
     };
 })();
 
-// ═══════════════════════════════════════════════════════════════
-// API Книг и Миров
-// ═══════════════════════════════════════════════════════════════
-let worldsRegistry = null;
-
-async function loadWorldsRegistry() {
-    try {
-        const r = await fetch(`${SERVER}/api/worlds`);
-        if (r.ok) worldsRegistry = await r.json();
-    } catch(e) { console.warn(e); }
-}
-
-async function applyWorldAtmosphere(worldId) {
-    if (!worldsRegistry?.worlds) return;
-    const world = worldsRegistry.worlds.find(w => w.id === worldId);
-    if (!world) return;
-    currentWorldId = worldId;
-    await playAmbientWorld(worldId);
-    await applyReverb(worldId);
-}
-
-function apiMeta() { return UID ? `${SERVER}/api/beacon/uid/${UID}/meta` : `${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/meta`; }
-function apiChapter(id) { return UID ? `${SERVER}/api/beacon/uid/${UID}/chapters/${encodeURIComponent(id)}` : `${SERVER}/api/beacon/stories/${encodeURIComponent(CHILD)}/chapters/${encodeURIComponent(id)}`; }
-
-const Book = (() => {
-    let book = null, chapters = {};
-    async function init() {
-        const r = await fetch(apiMeta());
-        if (!r.ok) throw new Error();
-        book = await r.json();
-        UID = UID || book.uid;
-        await loadChapter(book.starting_chapter || 'ch01');
-    }
-    async function loadChapter(id) {
-        if (chapters[id]) return chapters[id];
-        const r = await fetch(apiChapter(id));
-        if (!r.ok) return null;
-        const d = await r.json();
-        if (d && d.scenes) {
-            d._idx = {};
-            d.scenes.forEach(s => { const sid = s.scene_id || s.id; if (sid) d._idx[sid] = s; });
-        }
-        chapters[id] = d;
-        return d;
-    }
-    function getScene(chId, scId) { return chapters[chId]?._idx?.[scId] || null; }
-    async function findScene(scId) {
-        for (const m of (book?.chapters || [])) {
-            const ch = await loadChapter(m.id);
-            if (ch?._idx?.[scId]) return { chId: m.id, scene: ch._idx[scId] };
-        }
-        return null;
-    }
-    function start() { return { chId: book?.starting_chapter || 'ch01', scId: book?.starting_scene || 'scene_01' }; }
-    function firstScene(chId) { return chapters[chId]?.scenes?.[0] || null; }
-    function intents() { return book?.global_intents || {}; }
-    return { init, getScene, findScene, start, firstScene, loadChapter, intents };
-})();
-
-// ═══════════════════════════════════════════════════════════════
-// Canvas (фон)
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  Canvas — Искорка (без изменений)
+// ═══════════════════════════════════════════════════════════
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
-let clr = { r: 0, g: 200, b: 255 }, state = 'idle', tick = 0;
-function setColor(n) {
-    const MAP = { cyan: '#00c8ff', gold: '#ffcc44', blue: '#4488ff', red: '#ff4444', green: '#44ff88' };
-    const h = MAP[n?.toLowerCase()] || '#00c8ff';
-    const m = h.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-    if (m) clr = { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
-}
-function rgba(a) { return `rgba(${clr.r}, ${clr.g}, ${clr.b}, ${a})`; }
-function resize() { cv.width = innerWidth; cv.height = innerHeight; }
-resize(); addEventListener('resize', resize);
-function draw() {
-    requestAnimationFrame(draw);
-    const w = cv.width, h = cv.height, mx = w/2, my = h/2;
-    cx.fillStyle = 'rgba(0,0,0,.16)';
-    cx.fillRect(0, 0, w, h);
-    tick += state === 'thinking' ? .055 : .035;
-    const vol = state === 'idle' ? 3 + Math.sin(tick)*2 : state === 'thinking' ? 6 + Math.sin(tick*2)*3 : 4;
-    const r = 5 + vol * 1.8;
-    const g1 = cx.createRadialGradient(mx, my, 0, mx, my, r*5);
-    g1.addColorStop(0, rgba(.22));
-    g1.addColorStop(.5, rgba(.04));
-    g1.addColorStop(1, 'rgba(0,0,0,0)');
-    cx.fillStyle = g1;
-    cx.beginPath();
-    cx.arc(mx, my, r*5, 0, Math.PI*2);
-    cx.fill();
-    const g2 = cx.createRadialGradient(mx, my, 0, mx, my, r*2.5);
-    g2.addColorStop(0, rgba(.95));
-    g2.addColorStop(.3, rgba(.3));
-    g2.addColorStop(1, 'rgba(0,0,0,0)');
-    cx.fillStyle = g2;
-    cx.beginPath();
-    cx.arc(mx, my, r*2.5, 0, Math.PI*2);
-    cx.fill();
-}
-draw();
+let clr = { r:0, g:200, b:255 }, state = 'idle', tick = 0;
+function setColor(n) { const M={cyan:'#00c8ff',gold:'#ffcc44',blue:'#4488ff',red:'#ff4444',green:'#44ff88'}; const h=M[n?.toLowerCase()]||'#00c8ff'; const m=h.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i); if(m) clr={r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)}; }
+function rgba(a) { return `rgba(${clr.r},${clr.g},${clr.b},${a})`; }
+function resize() { cv.width=innerWidth; cv.height=innerHeight; } resize(); addEventListener('resize',resize);
+function draw() { requestAnimationFrame(draw); const w=cv.width,h=cv.height,mx=w/2,my=h/2; cx.fillStyle='rgba(0,0,0,.16)'; cx.fillRect(0,0,w,h);
+    tick+=state==='thinking'?.055:.035; const vol=state==='idle'?3+Math.sin(tick)*2:state==='thinking'?6+Math.sin(tick*2)*3:4; const r=5+vol*1.8;
+    const g1=cx.createRadialGradient(mx,my,0,mx,my,r*5); g1.addColorStop(0,rgba(.22)); g1.addColorStop(.5,rgba(.04)); g1.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=g1; cx.beginPath(); cx.arc(mx,my,r*5,0,Math.PI*2); cx.fill();
+    const g2=cx.createRadialGradient(mx,my,0,mx,my,r*2.5); g2.addColorStop(0,rgba(.95)); g2.addColorStop(.3,rgba(.3)); g2.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=g2; cx.beginPath(); cx.arc(mx,my,r*2.5,0,Math.PI*2); cx.fill();
+} draw();
 
-const LABELS = { idle: 'Коснись, чтобы говорить', listening: 'Слушаю…', thinking: 'Думаю…', speaking: 'Говорю…' };
-function setState(s) { state = s; document.getElementById('status').textContent = LABELS[s] || ''; playStateSound(s); }
-function showCap(t) { const e = document.getElementById('caption'); e.textContent = t; e.style.opacity = '1'; }
-function hideCap() { document.getElementById('caption').style.opacity = '0'; }
+const LABELS = { idle:'Коснись, чтобы говорить', listening:'Слушаю…', thinking:'Думаю…', speaking:'Говорю…' };
+function setState(s) { state=s; document.getElementById('status').textContent=LABELS[s]||''; playStateSound(s); }
+function showCap(t) { const e=document.getElementById('caption'); e.textContent=t; e.style.opacity='1'; }
+function hideCap() { document.getElementById('caption').style.opacity='0'; }
 
-// TTS + STT
-let synthVoice = null, stt = null;
-let speakGeneration = 0;
-function initTTS() { const l = () => { synthVoice = speechSynthesis.getVoices().find(v => v.lang === 'ru-RU') || null; }; speechSynthesis.onvoiceschanged = l; l(); }
+// ═══════════════════════════════════════════════════════════
+//  TTS + STT
+// ═══════════════════════════════════════════════════════════
+let synthVoice = null, stt = null, speakGeneration = 0;
+function initTTS() { const l=()=>{synthVoice=speechSynthesis.getVoices().find(v=>v.lang==='ru-RU')||null;}; speechSynthesis.onvoiceschanged=l; l(); }
 function initSTT() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    stt = new SR();
-    stt.lang = 'ru-RU';
-    stt.continuous = false;
-    stt.interimResults = false;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+    stt = new SR(); stt.lang='ru-RU'; stt.continuous=false; stt.interimResults=false;
     stt.onresult = e => onSpoke(e.results[0][0].transcript.trim());
-    stt.onerror = () => { if (state === 'listening') setState('idle'); };
-    stt.onend = () => { if (state === 'listening') setState('idle'); };
+    stt.onerror = () => { if(state==='listening') setState('idle'); };
+    stt.onend = () => { if(state==='listening') setState('idle'); };
 }
-function listen() {
-    if (!gameActive || !stt || state !== 'idle') return;
-    speechSynthesis.cancel();
-    try { stt.start(); setState('listening'); } catch(e) {}
-}
-function speakOne(text, gen) {
-    return new Promise(resolve => {
-        if (gen !== speakGeneration) { resolve(); return; }
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ru-RU';
-        u.rate = 0.88;
-        if (synthVoice) u.voice = synthVoice;
-        let done = false;
-        const finish = () => { if (!done) { done = true; clearTimeout(wd); resolve(); } };
-        const wd = setTimeout(() => { speechSynthesis.cancel(); finish(); }, 15000);
-        u.onend = finish;
-        u.onerror = finish;
-        speechSynthesis.speak(u);
-    });
-}
+function listen() { if(!gameActive||!stt||state!=='idle') return; speechSynthesis.cancel(); try{stt.start();setState('listening');}catch{} }
+
+function speakOne(text, gen) { return new Promise(resolve => {
+    if(gen!==speakGeneration){resolve();return} speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang='ru-RU'; u.rate=0.88; if(synthVoice) u.voice=synthVoice;
+    let done=false; const finish=()=>{if(!done){done=true;clearTimeout(wd);resolve()}}; const wd=setTimeout(()=>{speechSynthesis.cancel();finish()},15000);
+    u.onend=finish; u.onerror=finish; speechSynthesis.speak(u);
+}); }
+
 async function speak(text, color, onDone) {
-    if (!text) { if (onDone) onDone(); return; }
-    const gen = ++speakGeneration;
-    speechSynthesis.cancel();
-    try { stt?.abort(); } catch(e) {}
-    if (color) setColor(color);
-    setState('speaking');
-    showCap(text);
-    const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g) || [text];
-    for (const s of sentences) {
-        if (gen !== speakGeneration) break;
-        await speakOne(s.trim(), gen);
-    }
-    hideCap();
-    setState('idle');
-    if (onDone) onDone();
-    else if (autoListen && gameActive) setTimeout(listen, 400);
+    if(!text){if(onDone)onDone();return}
+    const gen=++speakGeneration; speechSynthesis.cancel(); try{stt?.abort();}catch{}
+    if(color)setColor(color); setState('speaking'); showCap(text);
+    const sentences=text.match(/[^.!?]+[.!?]+[\s]*/g)||[text];
+    for(const s of sentences){if(gen!==speakGeneration)break;await speakOne(s.trim(),gen);}
+    hideCap(); setState('idle');
+    if(onDone) onDone();
+    else if(autoListen&&gameActive) setTimeout(listen,400);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Сцены и навигация
-// ═══════════════════════════════════════════════════════════════
-let curScene = null, curCh = null;
+// ═══════════════════════════════════════════════════════════
+//  МОСТИКИ
+// ═══════════════════════════════════════════════════════════
+let currentBridge = null;
 
-async function handleArtifactReward(scene, sceneId) {
-    if (scene.reward?.artifact) {
-        const a = scene.reward.artifact;
-        if (!SessionMemory.artifacts.some(art => art.id === a.id)) {
-            await SessionMemory.addArtifact(a, sceneId);
-            await speak(`🎁 Ты получил(а) артефакт: ${a.name}! ${a.description}`, 'gold');
-            return true;
-        }
-    }
-    return false;
+function showBridgePanel(bridge) {
+    currentBridge = bridge;
+    const panel = document.getElementById('bridge-panel');
+    document.getElementById('bridge-text').innerHTML = `🌟 ${bridge.task}<br><small>+${bridge.karma_reward||2} кармы</small>`;
+    panel.classList.add('show');
 }
 
-async function handleBridgeToReality(scene, sceneId) {
-    if (scene.bridge_to_reality?.pending) {
-        const b = scene.bridge_to_reality.pending;
-        if (!b.accessibility?.requires_vision) {
-            await SessionMemory.addPendingBridge(b, sceneId);
-            return true;
-        }
-    }
-    return false;
+async function completeBridge() {
+    if (!currentBridge) return;
+    sessionReport.bridges_completed.push(currentBridge.id);
+    document.getElementById('bridge-panel').classList.remove('show');
+    await speak('Ура! Ты справился! Это здорово!', 'gold');
+    currentBridge = null;
 }
 
-async function handleConsequenceTriggers(text, scene) {
-    if (!scene.consequence_triggers) return null;
-    const lower = text.toLowerCase();
-    for (const [type, trig] of Object.entries(scene.consequence_triggers)) {
-        if (trig.trigger_words?.some(w => lower.includes(w.toLowerCase()))) {
-            if (trig.karma_shift) {
-                SessionMemory.karma.current += trig.karma_shift;
-                SessionMemory.karma.history.push({ ts: new Date().toISOString(), delta: trig.karma_shift, reason: type });
-                await SessionMemory.save();
-            }
-            if (trig.iskra_response) await speak(trig.iskra_response, trig.ui_pulse_color || 'orange');
-            if (trig.requires_parent_intervention) {
-                document.getElementById('em-text').textContent = trig.iskra_response || 'Позовём взрослого?';
-                document.getElementById('emergency').classList.add('on');
-                return { action: 'parent', nextScene: trig.next_scene };
-            }
-            if (trig.next_scene) return { action: 'transition', nextScene: trig.next_scene };
-            return { action: 'handled' };
-        }
-    }
-    return null;
-}
+// ═══════════════════════════════════════════════════════════
+//  НАВИГАЦИЯ ПО СЦЕНАМ (STANDARD v3.0 §6 — voice_choice)
+// ═══════════════════════════════════════════════════════════
 
 async function playScene(scene) {
     if (!scene) { setState('idle'); return; }
     curScene = scene;
-    if (scene.world_id && scene.world_id !== currentWorldId) await applyWorldAtmosphere(scene.world_id);
-    await handleArtifactReward(scene, scene.scene_id);
-    await handleBridgeToReality(scene, scene.scene_id);
-    const intro = scene.scene_text || scene.intro_event?.text;
-    if (!intro) return;
-    setColor(scene.ui_pulse_color || 'cyan');
-    await speak(intro, null, () => { if (autoListen && gameActive) setTimeout(listen, 400); });
+    await Mem.setProgress(currentChapter?.id || 'ch01', scene.scene_id);
+
+    // Foley и музыка (STANDARD §6.1)
+    if (scene.foley) await playFoley(scene.foley);
+    if (scene.music) await playMusic(scene.music);
+
+    // Озвучиваем текст сцены (STANDARD §6.1: speaker + text)
+    const text = scene.text;
+    if (!text) return;
+    await speak(text, null, () => {
+        if (autoListen && gameActive && scene.mode === 'voice_choice') setTimeout(listen, 400);
+    });
 }
 
-async function goScene(target) {
+async function goScene(sceneId) {
     if (isTransitioning) return;
     isTransitioning = true;
     try {
-        if (target === 'end') {
-            gameActive = false;
-            setState('idle');
-            await speak('Спасибо, что был со мной. До встречи!', 'gold');
-            return;
-        }
-        const sceneId = typeof target === 'string' ? target : target.next_scene;
-        const found = await Book.findScene(sceneId);
-        if (found) {
-            curCh = found.chId;
-            curScene = found.scene;
-            await Mem.setProgress(SID, found.chId, sceneId);
-            await playScene(found.scene);
+        const scene = sceneIndex[sceneId];
+        if (scene) {
+            await playScene(scene);
         } else {
-            await speak('Тропинка пропала... Но я рядом.', 'cyan');
+            await speak('Тропинка пропала… Но я рядом.', 'cyan');
         }
     } finally { isTransitioning = false; }
 }
 
-async function onSpoke(text) {
-    if (!gameActive || !text) return;
-    setState('thinking');
-    await Mem.saveSay(SID, text);
-    
-    const SOFT = {
-        substances: { keywords: ["покурим","сигарета","алкоголь","вино","водка","курить"], reply: "Здесь мы говорим о дружбе. Давай ещё раз?", color: "gold" },
-        violence: { keywords: ["убить","ударю","сломаю"], reply: "Расскажи, что тебя беспокоит?", color: "orange" }
-    };
-    for (const [_, rule] of Object.entries(SOFT)) {
-        if (rule.keywords.some(k => text.toLowerCase().includes(k))) {
-            await speak(rule.reply, rule.color);
-            return;
-        }
-    }
-    
-    const gi = Book.intents();
-    for (const [_, intent] of Object.entries(gi)) {
-        if (intent.keywords?.some(k => text.toLowerCase().includes(k))) {
-            if (intent.action === 'pause_game_until_adult') {
-                document.getElementById('em-text').textContent = intent.reply_text;
-                document.getElementById('emergency').classList.add('on');
-                await speak(intent.reply_text, 'red');
-                return;
-            }
-            await speak(intent.reply_text, intent.ui_pulse_color || 'red');
-            return;
-        }
-    }
-    
-    const scene = curScene;
-    if (!scene) { await speak(`Расскажи мне, ${CHILD}.`, 'cyan'); return; }
-    
-    const consequence = await handleConsequenceTriggers(text, scene);
-    if (consequence?.action === 'transition' && consequence.nextScene) {
-        await goScene(consequence.nextScene);
+async function handleChapterEnd() {
+    const onEnd = currentChapter?.on_end;
+    if (!onEnd) {
+        await sendReport();
+        await speak('Глава закончилась. Спасибо, что был рядом!', 'gold');
+        gameActive = false;
         return;
     }
-    if (consequence) return;
-    
-    if (scene.intent_triggers) {
-        const lower = text.toLowerCase();
-        for (const [key, words] of Object.entries(scene.intent_triggers)) {
-            if (words.some(w => lower.includes(w.toLowerCase()))) {
-                const next = scene.next_scenes?.[key];
-                if (next) { await goScene(next); return; }
+
+    // Награды
+    const rewards = currentChapter.rewards;
+    if (rewards) {
+        if (rewards.karma_reward) {
+            sessionReport.karma_gained += rewards.karma_reward;
+        }
+        if (rewards.artifacts) {
+            for (const a of rewards.artifacts) {
+                sessionReport.new_artifacts.push(a.id);
+                if (a.sound) { const buf = await loadAudioBuffer(a.sound); if (buf) create3DSource(buf, 0, 0.3, -0.5, false, 0.6); }
+                await speak(`Ты получил артефакт: ${a.name}!`, 'gold');
             }
         }
     }
-    
-    const fb = scene.next_scenes?._fallback;
-    if (fb) {
-        await speak('Я не совсем понял. Давай ещё раз?', 'cyan');
-        await goScene(fb);
+
+    // Отправляем report
+    await sendReport();
+
+    if (onEnd.action === 'load_next_chapter' && onEnd.target_chapter) {
+        if (onEnd.auto_start) {
+            await speak('Продолжаем! Новая глава начинается…', 'cyan');
+            // Перезагружаем story_package (Маяк отдаст следующую непройденную главу)
+            try {
+                const ch = await loadStoryPackage();
+                if (ch) {
+                    resetSessionReport();
+                    const firstScene = ch.scenes?.[0];
+                    if (firstScene) await playScene(firstScene);
+                } else {
+                    await speak('Все главы пройдены! Попроси родителя заказать новую.', 'gold');
+                    gameActive = false;
+                }
+            } catch(e) { await speak('Новая глава ещё не готова. Скоро будет!', 'cyan'); }
+        } else {
+            await speak(onEnd.message || 'Глава закончена!', 'gold');
+            gameActive = false;
+        }
+    } else if (onEnd.action === 'end') {
+        await speak(onEnd.message || 'Спасибо за приключение!', 'gold');
+        gameActive = false;
     } else {
-        await speak('Расскажи ещё, пожалуйста.', 'cyan');
-        if (autoListen) setTimeout(listen, 400);
+        await speak('Глава завершена!', 'gold');
+        gameActive = false;
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ЗАПУСК
-// ═══════════════════════════════════════════════════════════════
-let SID = Date.now().toString();
+function resetSessionReport() {
+    sessionReport = { choices_made: [], memory_vectors: [], bridges_completed: [], new_artifacts: [], karma_gained: 0,
+        session_start: new Date().toISOString(), session_end: null };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ОБРАБОТКА ГОЛОСА (STANDARD v3.0 — только keyword-matching)
+// ═══════════════════════════════════════════════════════════
+
+async function onSpoke(text) {
+    if (!gameActive || !text) return;
+    setState('thinking');
+    await Mem.saveSay(text);
+    const lower = text.toLowerCase();
+
+    // 1. Global intents (emergency, stop)
+    for (const [_, intent] of Object.entries(globalIntents)) {
+        if (intent.keywords?.some(k => lower.includes(k))) {
+            if (intent.action === 'pause_game_until_adult') {
+                document.getElementById('em-text').textContent = intent.reply_text;
+                document.getElementById('emergency').classList.add('on');
+                gameActive = false;
+                await speak(intent.reply_text, 'red');
+                return;
+            }
+            await speak(intent.reply_text, 'cyan');
+            return;
+        }
+    }
+
+    // 2. Текущая сцена: voice_choice keyword-matching (STANDARD §6.2)
+    const scene = curScene;
+    if (!scene?.choices?.length) {
+        // Нет выборов — возможно, конец главы
+        await handleChapterEnd();
+        return;
+    }
+
+    for (const choice of scene.choices) {
+        if (choice.keywords?.some(k => lower.includes(k.toLowerCase()))) {
+            // Записываем выбор в report
+            sessionReport.choices_made.push({
+                scene_id: scene.scene_id,
+                choice_id: choice.id,
+                timestamp: new Date().toISOString()
+            });
+            if (choice.memory_vector) {
+                sessionReport.memory_vectors.push(choice.memory_vector);
+            }
+            await Mem.addChoice(scene.scene_id, choice.id, choice.memory_vector || '');
+
+            // Переход
+            if (choice.next_scene === 'end' || !choice.next_scene) {
+                await handleChapterEnd();
+            } else {
+                await goScene(choice.next_scene);
+            }
+            return;
+        }
+    }
+
+    // 3. Ничего не распознали — повторяем варианты
+    const options = scene.choices.map(c => c.label || c.keywords?.[0] || '?').join(', ');
+    await speak(`Я не совсем понял. Попробуй сказать: ${options}`, 'cyan');
+    if (autoListen) setTimeout(listen, 400);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ЗАПУСК
+// ═══════════════════════════════════════════════════════════
 
 async function boot() {
     gameActive = true;
     isTransitioning = false;
     document.getElementById('start').style.display = 'none';
     setState('thinking');
-    
+
     await initAudio();
     await Mem.open();
-    await SessionMemory.loadFromBio();
-    await loadWorldsRegistry();
-    window.worldsRegistry = worldsRegistry;
-    
     initSTT();
     initTTS();
-    
+
+    resetSessionReport();
+
     try {
-        await Book.init();
-        const s = Book.start();
-        curCh = s.chId;
-        curScene = Book.getScene(s.chId, s.scId) || Book.firstScene(s.chId);
-        if (curScene?.world_id) await applyWorldAtmosphere(curScene.world_id);
-        await speak(`Привет, ${CHILD}! Добро пожаловать в Живую Книгу.`, 'cyan', () => playScene(curScene));
+        await loadGlobalIntents();
+        const chapter = await loadStoryPackage();
+
+        if (!chapter) {
+            await speak(`Привет, ${CHILD}! Все приключения пройдены. Попроси родителя заказать новую книгу!`, 'gold');
+            gameActive = false;
+            return;
+        }
+
+        const childName = storyPackage.child?.name || CHILD;
+        const firstScene = chapter.scenes?.[0];
+
+        if (firstScene) {
+            const title = chapter.title || 'новая глава';
+            await speak(`Привет, ${childName}! Начинаем: ${title}.`, 'cyan', () => playScene(firstScene));
+        } else {
+            await speak(`Привет, ${childName}! Я Искорка. Скоро начнётся приключение!`, 'cyan');
+        }
     } catch(e) {
-        await speak(`Привет, ${CHILD}! Я Искорка.`, 'cyan', () => setState('idle'));
+        console.error('[Boot]', e);
+        await speak(`Привет! Я Искорка. Пока не могу загрузить книгу. Проверь связь с Маяком.`, 'cyan');
+        gameActive = false;
     }
 }
 
@@ -681,19 +512,16 @@ async function boot() {
 document.getElementById('go').onclick = () => { autoListen = true; boot(); };
 document.getElementById('em-btn').onclick = () => {
     document.getElementById('emergency').classList.remove('on');
-    setState('idle');
-    speak('Продолжим?', 'cyan');
+    gameActive = true; setState('idle');
+    speak('Хорошо, продолжим?', 'cyan');
 };
-document.getElementById('bridge-complete').onclick = () => {
-    if (window.currentPendingBridge) SessionMemory.completeBridge(window.currentPendingBridge);
-    window.currentPendingBridge = null;
-};
-cv.addEventListener('click', () => { if (state === 'idle' && gameActive) listen(); });
-cv.addEventListener('touchstart', e => { e.preventDefault(); if (state === 'idle' && gameActive) listen(); }, { passive: false });
+document.getElementById('bridge-complete').onclick = () => completeBridge();
+cv.addEventListener('click', () => { if(state==='idle'&&gameActive) listen(); });
+cv.addEventListener('touchstart', e => { e.preventDefault(); if(state==='idle'&&gameActive) listen(); }, { passive:false });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 
-console.log('[Iskra] v5.1 — 3D Audio + Artifact Loops + Offline Cache Ready');
+console.log('[Iskra] v6.0 — STANDARD v3.0 • voice_choice only • keyword-matching • story_package.json');
 </script>
 </body>
 </html>
